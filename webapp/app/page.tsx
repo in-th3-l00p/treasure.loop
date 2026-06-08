@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 const checkpoints = [
@@ -160,9 +161,9 @@ export default function Home() {
           <a href="#rewards">Rewards</a>
           <a href="#faq">FAQ</a>
         </nav>
-        <a className="header-cta" href="mailto:hello@intheloop.ro">
-          Book a loop
-        </a>
+        <Link className="header-cta" href="/login">
+          Open console
+        </Link>
       </header>
 
       <section className="hero" id="top">
@@ -179,12 +180,12 @@ export default function Home() {
             as an on-chain badge.
           </p>
           <div className="hero-actions">
-            <a className="primary-action" href="mailto:hello@intheloop.ro">
+            <Link className="primary-action" href="/login">
               Join the hunt
-            </a>
-            <a className="secondary-action" href="#how">
-              See the route
-            </a>
+            </Link>
+            <Link className="secondary-action" href="/app">
+              View mock app
+            </Link>
           </div>
           <div className="signal-row" aria-label="Product highlights">
             <span>No gas friction</span>
@@ -262,9 +263,9 @@ export default function Home() {
           Configure the graph, place the checkpoints, and let the crowd chase
           the route from booth to booth.
         </p>
-        <a className="primary-action" href="mailto:hello@intheloop.ro">
+        <Link className="primary-action" href="/login">
           Start a deployment
-        </a>
+        </Link>
       </section>
 
       <footer className="footer">
