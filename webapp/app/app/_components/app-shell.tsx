@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useEffect, useState } from "react"
 import {
   ChevronsUpDownIcon,
   GaugeIcon,
@@ -9,6 +10,7 @@ import {
   LifeBuoyIcon,
   MapPinnedIcon,
   RouteIcon,
+  SearchIcon,
   SettingsIcon,
   ShieldCheckIcon,
   TicketIcon,
@@ -17,6 +19,8 @@ import {
 
 import { event } from "@/lib/mock-data"
 import { cn } from "@/lib/utils"
+
+import { CommandPalette } from "./command-palette"
 
 const primaryNav = [
   { name: "Overview", href: "/app", icon: GaugeIcon },
@@ -82,6 +86,19 @@ function NavSection({
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const [paletteOpen, setPaletteOpen] = useState(false)
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const cmdOrCtrl = e.metaKey || e.ctrlKey
+      if (cmdOrCtrl && e.key.toLowerCase() === "k") {
+        e.preventDefault()
+        setPaletteOpen((prev) => !prev)
+      }
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [])
 
   const isActive = (href: string) => {
     if (href === "/app") return pathname === "/app"
@@ -117,6 +134,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </span>
             </span>
             <ChevronsUpDownIcon className="size-3 text-sidebar-foreground/40" />
+          </button>
+        </div>
+
+        <div className="px-3 pt-3">
+          <button
+            type="button"
+            onClick={() => setPaletteOpen(true)}
+            className="flex w-full items-center gap-2 rounded-md border border-sidebar-border bg-sidebar-accent/50 px-2 py-1.5 text-left text-[12px] text-sidebar-foreground/55 transition-colors hover:border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-foreground"
+          >
+            <SearchIcon className="size-3.5 text-sidebar-foreground/40" />
+            <span className="flex-1">Search</span>
+            <Kbd>⌘K</Kbd>
           </button>
         </div>
 
@@ -181,6 +210,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <header className="sticky top-0 z-10 flex h-12 items-center justify-between gap-4 border-b border-border bg-background/85 px-6 backdrop-blur-md lg:px-10">
           <Crumb pathname={pathname} />
           <div className="flex items-center gap-3 text-xs">
+            <button
+              type="button"
+              onClick={() => setPaletteOpen(true)}
+              className="hidden items-center gap-2 rounded-md border border-border px-2 py-1 text-muted-foreground transition-colors hover:border-border hover:text-foreground lg:flex"
+            >
+              <SearchIcon className="size-3" />
+              <span>Jump to…</span>
+              <Kbd>⌘K</Kbd>
+            </button>
             <span className="flex items-center gap-1.5 text-muted-foreground">
               <span className="size-1.5 rounded-full bg-emerald-400" />
               Live rehearsal
@@ -189,7 +227,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </header>
         <div className="flex-1">{children}</div>
       </main>
+
+      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
     </div>
+  )
+}
+
+function Kbd({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="rounded border border-border bg-background/40 px-1 font-mono text-[10px] text-muted-foreground">
+      {children}
+    </span>
   )
 }
 
