@@ -1293,35 +1293,46 @@ p {
    Calmer surfaces, neutral tokens, sans-only typography.
    Landing-page tokens above remain untouched. */
 .product-shell {
-  --background: oklch(11% 0.005 286);
-  --foreground: oklch(96% 0.004 286);
-  --card: oklch(15% 0.006 286);
-  --card-foreground: oklch(96% 0.004 286);
-  --popover: oklch(15% 0.006 286);
-  --popover-foreground: oklch(96% 0.004 286);
+  --background: oklch(10% 0.003 286);
+  --foreground: oklch(96% 0.002 286);
+  --card: oklch(10% 0.003 286);
+  --card-foreground: oklch(96% 0.002 286);
+  --popover: oklch(13% 0.004 286);
+  --popover-foreground: oklch(96% 0.002 286);
   --primary: oklch(73% 0.17 296);
   --primary-foreground: oklch(98% 0.005 286);
-  --secondary: oklch(20% 0.006 286);
-  --secondary-foreground: oklch(94% 0.004 286);
-  --muted: oklch(20% 0.006 286);
-  --muted-foreground: oklch(70% 0.006 286);
-  --accent: oklch(22% 0.012 296);
-  --accent-foreground: oklch(96% 0.004 286);
-  --destructive: oklch(64% 0.2 25);
-  --border: oklch(96% 0.004 286 / 0.08);
-  --input: oklch(96% 0.004 286 / 0.1);
-  --ring: oklch(73% 0.17 296 / 0.55);
-  --sidebar: oklch(10% 0.005 286);
-  --sidebar-foreground: oklch(94% 0.004 286);
+  --secondary: oklch(14% 0.004 286);
+  --secondary-foreground: oklch(94% 0.002 286);
+  --muted: oklch(14% 0.004 286);
+  --muted-foreground: oklch(62% 0.004 286);
+  --accent: oklch(16% 0.006 286);
+  --accent-foreground: oklch(96% 0.002 286);
+  --destructive: oklch(64% 0.18 25);
+  --border: oklch(96% 0.002 286 / 0.06);
+  --input: oklch(96% 0.002 286 / 0.08);
+  --ring: oklch(73% 0.17 296 / 0.4);
+  --sidebar: oklch(10% 0.003 286);
+  --sidebar-foreground: oklch(94% 0.002 286);
   --sidebar-primary: oklch(73% 0.17 296);
   --sidebar-primary-foreground: oklch(98% 0.005 286);
-  --sidebar-accent: oklch(18% 0.006 286);
-  --sidebar-accent-foreground: oklch(96% 0.004 286);
-  --sidebar-border: oklch(96% 0.004 286 / 0.06);
-  --sidebar-ring: oklch(73% 0.17 296 / 0.55);
-  --radius: 0.625rem;
+  --sidebar-accent: oklch(14% 0.004 286);
+  --sidebar-accent-foreground: oklch(96% 0.002 286);
+  --sidebar-border: oklch(96% 0.002 286 / 0.05);
+  --sidebar-ring: oklch(73% 0.17 296 / 0.4);
+  --radius: 0.5rem;
   background: var(--background);
   color: var(--foreground);
+}
+
+/* Flatten cards inside product — remove the ring border by default. */
+.product-shell [data-slot="card"] {
+  background: transparent;
+  --tw-ring-shadow: 0 0 transparent;
+  --tw-ring-offset-shadow: 0 0 transparent;
+  box-shadow: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: visible;
 }
 
 /* Disable landing's heavy purple radials and grid texture inside product. */

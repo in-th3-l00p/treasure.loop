@@ -2,23 +2,10 @@ import Link from "next/link"
 import {
   ArrowUpRightIcon,
   DownloadIcon,
-  MessageCircleIcon,
-  TimerIcon,
-  TrendingUpIcon,
-  Users2Icon,
 } from "lucide-react"
 
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { Separator } from "@/components/ui/separator"
 import {
   Tabs,
   TabsContent,
@@ -27,12 +14,6 @@ import {
 } from "@/components/ui/tabs"
 import { checkpoints, hourlyTraffic, sponsors } from "@/lib/mock-data"
 import { cn } from "@/lib/utils"
-
-const tierStyles: Record<string, string> = {
-  Gold: "border-amber-400/40 bg-amber-400/10 text-amber-200",
-  Prize: "border-fuchsia-400/40 bg-fuchsia-400/10 text-fuchsia-200",
-  Community: "border-sky-400/40 bg-sky-400/10 text-sky-200",
-}
 
 export default function SponsorsPage() {
   const activeSponsor = sponsors[0]
@@ -45,270 +26,265 @@ export default function SponsorsPage() {
   const maxScans = Math.max(...hourlyTraffic.map((h) => h.scans))
 
   return (
-    <div className="px-5 pt-6 pb-14 lg:px-7">
-      <header className="flex flex-wrap items-end justify-between gap-4 pb-6">
-        <div>
-          <p className="font-mono text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
-            Sponsor performance
-          </p>
-          <h1 className="mt-1 text-[22px] font-semibold tracking-tight">
+    <div className="mx-auto max-w-[1280px] px-6 pt-8 pb-16 lg:px-10">
+      <header className="flex flex-wrap items-end justify-between gap-6 pb-8">
+        <div className="max-w-xl">
+          <p className="text-xs text-muted-foreground">Sponsor performance</p>
+          <h1 className="mt-1 text-xl font-medium tracking-tight">
             {activeSponsor.name}
           </h1>
-          <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+          <p className="mt-1.5 text-sm text-muted-foreground">
             Booth traffic, conversation rate, and qualified attendee signal for
             the {activeCheckpoint?.name} checkpoint.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" className="h-8">
+          <Button variant="ghost" className="h-8 text-muted-foreground">
             <DownloadIcon className="mr-1.5 size-3.5" /> Export CSV
           </Button>
-          <Button className="h-8">
+          <Button variant="outline" className="h-8">
             Share with sponsor
             <ArrowUpRightIcon className="ml-1 size-3.5" />
           </Button>
         </div>
       </header>
 
-      <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-        {sponsors.map((s) => {
-          const active = s.name === activeSponsor.name
-          const rate = Math.round((s.conversations / s.visits) * 100)
-          return (
-            <Link
-              key={s.name}
-              href="#"
-              data-active={active || undefined}
-              className={cn(
-                "group relative flex flex-col gap-3 rounded-lg border p-3.5 transition-all",
-                "border-border bg-card hover:border-primary/30 hover:bg-card/80",
-                "data-[active]:border-primary/50 data-[active]:bg-primary/8",
-                "data-[active]:shadow-[0_0_0_1px_oklch(73%_0.17_296_/_0.25)]"
-              )}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-sm font-medium leading-tight">{s.name}</span>
-                  <span className="font-mono text-[10px] tracking-[0.1em] text-muted-foreground uppercase">
-                    {s.tier} tier
-                  </span>
-                </div>
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    "h-5 shrink-0 rounded-full px-1.5 font-mono text-[9px] tracking-[0.08em] uppercase",
-                    tierStyles[s.tier] ?? "border-border text-muted-foreground"
-                  )}
-                >
-                  {s.tier}
-                </Badge>
-              </div>
-              <div className="flex items-end justify-between gap-2">
-                <div className="flex flex-col leading-tight">
-                  <span className="text-lg font-semibold tabular-nums tracking-tight">
-                    {s.visits.toLocaleString()}
-                  </span>
-                  <span className="text-[11px] text-muted-foreground">
-                    visits today
-                  </span>
-                </div>
-                <div className="flex flex-col items-end leading-tight">
-                  <span className="text-sm font-medium tabular-nums">
-                    {rate}%
-                  </span>
-                  <span className="text-[11px] text-muted-foreground">
-                    talk-through
-                  </span>
-                </div>
-              </div>
-            </Link>
-          )
-        })}
-      </div>
-
-      <div className="grid items-start gap-4 xl:grid-cols-[1.5fr_1fr]">
-        <Card>
-          <CardHeader className="pb-3">
-            <Tabs defaultValue="traffic">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <CardTitle className="text-sm font-medium">
-                    Traffic and conversation
-                  </CardTitle>
-                  <CardDescription className="text-xs">
-                    Scans recorded at the booth versus follow-up conversations
-                  </CardDescription>
-                </div>
-                <TabsList className="h-8 bg-secondary/40 p-0.5">
-                  <TabsTrigger value="traffic" className="h-7 px-3 text-xs">
-                    Today
-                  </TabsTrigger>
-                  <TabsTrigger value="week" className="h-7 px-3 text-xs">
-                    All days
-                  </TabsTrigger>
-                </TabsList>
-              </div>
-              <TabsContent value="traffic" className="mt-4">
-                <SponsorBarChart
-                  data={hourlyTraffic.map((h, i) => {
-                    const rate = 0.4 + (i % 5) * 0.08
-                    const conv = Math.round(h.scans * rate * 0.4)
-                    return {
-                      label: h.hour,
-                      primary: conv,
-                      secondary: h.scans - conv,
-                    }
-                  })}
-                  max={maxScans}
-                />
-                <div className="mt-4 flex items-center gap-4 text-[11px] text-muted-foreground">
-                  <span className="flex items-center gap-1.5">
-                    <span className="size-2.5 rounded-sm bg-primary" />{" "}
-                    Conversations
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <span className="size-2.5 rounded-sm bg-primary/25" /> Scans
-                  </span>
-                </div>
-              </TabsContent>
-              <TabsContent
-                value="week"
-                className="mt-4 grid h-44 place-items-center text-xs text-muted-foreground"
+      <section className="mb-12">
+        <div className="grid divide-x divide-border overflow-hidden rounded-lg border border-border sm:grid-cols-2 lg:grid-cols-4">
+          {sponsors.map((s) => {
+            const active = s.name === activeSponsor.name
+            const rate = Math.round((s.conversations / s.visits) * 100)
+            return (
+              <Link
+                key={s.name}
+                href="#"
+                data-active={active || undefined}
+                className={cn(
+                  "group relative flex flex-col gap-3 p-5 transition-colors",
+                  "hover:bg-muted/30",
+                  "data-[active]:bg-muted/40"
+                )}
               >
-                Aggregated chart placeholder
-              </TabsContent>
-            </Tabs>
-          </CardHeader>
-        </Card>
+                <span
+                  className={cn(
+                    "absolute inset-x-0 top-0 h-px transition-colors",
+                    active ? "bg-primary" : "bg-transparent"
+                  )}
+                />
+                <div className="flex items-start justify-between gap-2">
+                  <span
+                    className={cn(
+                      "text-sm",
+                      active && "text-foreground"
+                    )}
+                  >
+                    {s.name}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {s.tier}
+                  </span>
+                </div>
+                <div className="flex items-end justify-between gap-2">
+                  <div className="flex flex-col leading-tight">
+                    <span className="text-2xl font-medium tabular-nums tracking-tight">
+                      {s.visits.toLocaleString()}
+                    </span>
+                    <span className="mt-0.5 text-xs text-muted-foreground">
+                      visits today
+                    </span>
+                  </div>
+                  <div className="flex flex-col items-end leading-tight">
+                    <span className="text-sm tabular-nums">{rate}%</span>
+                    <span className="mt-0.5 text-xs text-muted-foreground">
+                      talk-through
+                    </span>
+                  </div>
+                </div>
+              </Link>
+            )
+          })}
+        </div>
+      </section>
 
-        <div className="grid gap-4">
-          <Card>
-            <CardContent className="grid grid-cols-2 gap-3 py-4">
+      <section className="mb-12 grid gap-10 lg:grid-cols-[1.5fr_1fr]">
+        <div>
+          <Tabs defaultValue="traffic">
+            <div className="mb-5 flex items-end justify-between gap-3 border-b border-border pb-3">
+              <div>
+                <h2 className="text-sm font-medium">Traffic and conversation</h2>
+                <p className="text-xs text-muted-foreground">
+                  Scans recorded at the booth versus follow-up conversations
+                </p>
+              </div>
+              <TabsList className="h-7 bg-transparent p-0 gap-0">
+                <TabsTrigger
+                  value="traffic"
+                  className="h-7 rounded-none border-b border-transparent px-2 text-xs text-muted-foreground data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                >
+                  Today
+                </TabsTrigger>
+                <TabsTrigger
+                  value="week"
+                  className="h-7 rounded-none border-b border-transparent px-2 text-xs text-muted-foreground data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                >
+                  All days
+                </TabsTrigger>
+              </TabsList>
+            </div>
+            <TabsContent value="traffic">
+              <BarChart
+                data={hourlyTraffic.map((h, i) => {
+                  const rate = 0.4 + (i % 5) * 0.08
+                  const conv = Math.round(h.scans * rate * 0.4)
+                  return {
+                    label: h.hour,
+                    primary: conv,
+                    secondary: h.scans - conv,
+                  }
+                })}
+                max={maxScans}
+              />
+              <div className="mt-4 flex items-center gap-4 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <span className="size-2 rounded-[2px] bg-primary" />
+                  Conversations
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="size-2 rounded-[2px] bg-primary/20" /> Scans
+                </span>
+              </div>
+            </TabsContent>
+            <TabsContent
+              value="week"
+              className="grid h-44 place-items-center text-xs text-muted-foreground"
+            >
+              Aggregated chart placeholder
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        <div className="grid gap-8">
+          <section>
+            <div className="mb-5 border-b border-border pb-3">
+              <h2 className="text-sm font-medium">Today&apos;s numbers</h2>
+              <p className="text-xs text-muted-foreground">
+                Across the {activeCheckpoint?.name} checkpoint
+              </p>
+            </div>
+            <dl className="grid gap-x-8 gap-y-6 sm:grid-cols-2">
               <Metric
-                icon={Users2Icon}
                 label="Visits"
                 value={activeSponsor.visits.toLocaleString()}
                 hint="+128 today"
               />
               <Metric
-                icon={MessageCircleIcon}
                 label="Conversations"
                 value={activeSponsor.conversations.toLocaleString()}
                 hint={`${conversionRate}% talk-through`}
               />
-              <Metric
-                icon={TimerIcon}
-                label="Avg dwell"
-                value="2m 14s"
-                hint="vs 1m 48s prev"
-              />
-              <Metric
-                icon={TrendingUpIcon}
-                label="Qualified"
-                value="86"
-                hint="+12% vs Gold avg"
-              />
-            </CardContent>
-          </Card>
+              <Metric label="Avg dwell" value="2m 14s" hint="vs 1m 48s prev" />
+              <Metric label="Qualified" value="86" hint="+12% vs Gold avg" />
+            </dl>
+          </section>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">
-                Top scan moments
-              </CardTitle>
-              <CardDescription className="text-xs">
+          <section>
+            <div className="mb-3 border-b border-border pb-3">
+              <h2 className="text-sm font-medium">Top scan moments</h2>
+              <p className="text-xs text-muted-foreground">
                 When the booth was busiest
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-2 pb-3">
+              </p>
+            </div>
+            <ul className="grid divide-y divide-border">
               {[
                 { window: "15:00 – 15:30", scans: 88, label: "Post-keynote rush" },
                 { window: "12:00 – 12:30", scans: 64, label: "Lunch break" },
                 { window: "17:30 – 18:00", scans: 41, label: "Closing wave" },
               ].map((m) => (
-                <div
-                  key={m.window}
-                  className="grid gap-1.5 rounded-md border border-border bg-secondary/30 px-3 py-2"
-                >
+                <li key={m.window} className="grid gap-1.5 py-3">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-mono text-[11px] text-muted-foreground tabular-nums">
+                    <span className="font-mono text-xs text-muted-foreground tabular-nums">
                       {m.window}
                     </span>
-                    <span className="font-mono text-sm font-medium tabular-nums">
+                    <span className="font-mono text-sm tabular-nums">
                       {m.scans} scans
                     </span>
                   </div>
-                  <p className="text-[11px] text-muted-foreground">{m.label}</p>
-                  <Progress
-                    value={(m.scans / 100) * 100}
-                    className="h-1"
-                  />
-                </div>
+                  <p className="text-xs text-muted-foreground">{m.label}</p>
+                  <Progress value={(m.scans / 100) * 100} className="h-[2px]" />
+                </li>
               ))}
-            </CardContent>
-          </Card>
+            </ul>
+          </section>
         </div>
-      </div>
+      </section>
 
-      <Card className="mt-4">
-        <CardHeader className="pb-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <CardTitle className="text-sm font-medium">
-                Qualified leads
-              </CardTitle>
-              <CardDescription className="text-xs">
-                Attendees who completed this checkpoint and opted in to share
-                their wallet with the sponsor
-              </CardDescription>
-            </div>
-            <Badge
-              variant="outline"
-              className="h-6 rounded-full border-border bg-secondary/40 font-mono text-[10px] tracking-[0.1em] text-muted-foreground uppercase"
+      <section>
+        <div className="mb-5 flex items-end justify-between gap-3 border-b border-border pb-3">
+          <div>
+            <h2 className="text-sm font-medium">Qualified leads</h2>
+            <p className="text-xs text-muted-foreground">
+              Attendees who completed this checkpoint and opted in to share
+              their wallet with the sponsor
+            </p>
+          </div>
+          <span className="text-xs text-muted-foreground">86 leads</span>
+        </div>
+        <ul className="grid divide-y divide-border">
+          {[
+            { name: "Catalin T.", wallet: "0x74...92b1", interest: "smart accounts", time: "11:42" },
+            { name: "Ana D.", wallet: "0x31...ab70", interest: "AA wallets", time: "12:18" },
+            { name: "Radu C.", wallet: "0x09...21fc", interest: "hardware integration", time: "13:04" },
+            { name: "Mihai L.", wallet: "0x82...c914", interest: "compliance flows", time: "13:51" },
+            { name: "Iulia M.", wallet: "0x4a...77fe", interest: "cross-chain UX", time: "14:22" },
+          ].map((lead) => (
+            <li
+              key={lead.wallet}
+              className="grid grid-cols-[28px_1fr_1.2fr_auto] items-center gap-4 py-3"
             >
-              86 leads
-            </Badge>
-          </div>
-        </CardHeader>
-        <Separator className="bg-border/60" />
-        <CardContent className="pb-3">
-          <div className="grid gap-2">
-            {[
-              { name: "Catalin T.", wallet: "0x74...92b1", interest: "Smart accounts", time: "11:42" },
-              { name: "Ana D.", wallet: "0x31...ab70", interest: "AA wallets", time: "12:18" },
-              { name: "Radu C.", wallet: "0x09...21fc", interest: "Hardware integration", time: "13:04" },
-              { name: "Mihai L.", wallet: "0x82...c914", interest: "Compliance flows", time: "13:51" },
-              { name: "Iulia M.", wallet: "0x4a...77fe", interest: "Cross-chain UX", time: "14:22" },
-            ].map((lead) => (
-              <div
-                key={lead.wallet}
-                className="grid grid-cols-[28px_1fr_1.2fr_auto] items-center gap-3 rounded-md px-2 py-2 hover:bg-secondary/30"
-              >
-                <span className="grid size-7 place-items-center rounded-md bg-primary/15 font-mono text-[10px] text-primary">
-                  {lead.name.split(" ").map((s) => s[0]).join("")}
-                </span>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{lead.name}</p>
-                  <p className="truncate font-mono text-[11px] text-muted-foreground">
-                    {lead.wallet}
-                  </p>
-                </div>
-                <p className="truncate text-xs text-muted-foreground">
-                  Interested in {lead.interest.toLowerCase()}
+              <span className="grid size-7 place-items-center rounded-full bg-primary/12 font-mono text-[10px] text-primary">
+                {lead.name.split(" ").map((s) => s[0]).join("")}
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-sm">{lead.name}</p>
+                <p className="truncate font-mono text-[11px] text-muted-foreground">
+                  {lead.wallet}
                 </p>
-                <span className="font-mono text-[10px] text-muted-foreground tabular-nums">
-                  {lead.time}
-                </span>
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+              <p className="truncate text-xs text-muted-foreground">
+                Interested in {lead.interest}
+              </p>
+              <span className="font-mono text-[11px] text-muted-foreground tabular-nums">
+                {lead.time}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </section>
     </div>
   )
 }
 
-function SponsorBarChart({
+function Metric({
+  label,
+  value,
+  hint,
+}: {
+  label: string
+  value: string
+  hint: string
+}) {
+  return (
+    <div>
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="mt-1 text-xl font-medium tabular-nums tracking-tight">
+        {value}
+      </dd>
+      <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>
+    </div>
+  )
+}
+
+function BarChart({
   data,
   max,
   height = 168,
@@ -320,10 +296,6 @@ function SponsorBarChart({
   return (
     <div>
       <div
-        className="pointer-events-none absolute inset-x-0 grid"
-        style={{ height, gridTemplateRows: "repeat(4, 1fr)" }}
-      />
-      <div
         className="relative grid gap-2"
         style={{
           height,
@@ -331,13 +303,6 @@ function SponsorBarChart({
           gridAutoColumns: "1fr",
         }}
       >
-        {[0, 1, 2, 3].map((i) => (
-          <div
-            key={`r${i}`}
-            className="pointer-events-none absolute inset-x-0 border-t border-dashed border-border/40"
-            style={{ top: `${i * 25}%` }}
-          />
-        ))}
         {data.map((d) => {
           const total = d.primary + d.secondary
           const totalPct = Math.max((total / max) * 100, 2)
@@ -345,11 +310,11 @@ function SponsorBarChart({
           return (
             <div key={d.label} className="relative h-full">
               <div
-                className="absolute inset-x-0 bottom-0 flex flex-col overflow-hidden rounded-[3px]"
+                className="absolute inset-x-0 bottom-0 flex flex-col overflow-hidden rounded-[2px]"
                 style={{ height: `${totalPct}%` }}
               >
                 <div
-                  className="w-full bg-primary/25"
+                  className="w-full bg-primary/20"
                   style={{ height: `${100 - primaryPct}%` }}
                 />
                 <div
@@ -362,7 +327,7 @@ function SponsorBarChart({
         })}
       </div>
       <div
-        className="mt-2 grid gap-2"
+        className="mt-2 grid gap-2 border-t border-border pt-2"
         style={{
           gridAutoFlow: "column",
           gridAutoColumns: "1fr",
@@ -377,31 +342,6 @@ function SponsorBarChart({
           </span>
         ))}
       </div>
-    </div>
-  )
-}
-
-function Metric({
-  icon: Icon,
-  label,
-  value,
-  hint,
-}: {
-  icon: React.ComponentType<{ className?: string }>
-  label: string
-  value: string
-  hint: string
-}) {
-  return (
-    <div className="rounded-md border border-border bg-secondary/30 p-3">
-      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-        <Icon className="size-3" />
-        <span className="font-mono tracking-[0.12em] uppercase">{label}</span>
-      </div>
-      <p className="mt-1.5 text-xl font-semibold tabular-nums tracking-tight">
-        {value}
-      </p>
-      <p className="text-[11px] text-muted-foreground">{hint}</p>
     </div>
   )
 }
