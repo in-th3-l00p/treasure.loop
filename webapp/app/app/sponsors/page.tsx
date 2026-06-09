@@ -70,7 +70,7 @@ export default function SponsorsPage() {
         </div>
       </header>
 
-      <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-4">
+      <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
         {sponsors.map((s) => {
           const active = s.name === activeSponsor.name
           const rate = Math.round((s.conversations / s.visits) * 100)
@@ -80,37 +80,53 @@ export default function SponsorsPage() {
               href="#"
               data-active={active || undefined}
               className={cn(
-                "group flex flex-col gap-1.5 rounded-lg border p-3 transition-colors",
-                "border-border bg-card hover:border-primary/30",
-                "data-[active]:border-primary/50 data-[active]:bg-primary/8"
+                "group relative flex flex-col gap-3 rounded-lg border p-3.5 transition-all",
+                "border-border bg-card hover:border-primary/30 hover:bg-card/80",
+                "data-[active]:border-primary/50 data-[active]:bg-primary/8",
+                "data-[active]:shadow-[0_0_0_1px_oklch(73%_0.17_296_/_0.25)]"
               )}
             >
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-medium">{s.name}</span>
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-sm font-medium leading-tight">{s.name}</span>
+                  <span className="font-mono text-[10px] tracking-[0.1em] text-muted-foreground uppercase">
+                    {s.tier} tier
+                  </span>
+                </div>
                 <Badge
                   variant="outline"
                   className={cn(
-                    "h-5 rounded-full px-1.5 font-mono text-[9px] tracking-[0.08em] uppercase",
+                    "h-5 shrink-0 rounded-full px-1.5 font-mono text-[9px] tracking-[0.08em] uppercase",
                     tierStyles[s.tier] ?? "border-border text-muted-foreground"
                   )}
                 >
                   {s.tier}
                 </Badge>
               </div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-lg font-semibold tabular-nums tracking-tight">
-                  {s.visits.toLocaleString()}
-                </span>
-                <span className="text-[11px] text-muted-foreground">
-                  visits · {rate}% talk
-                </span>
+              <div className="flex items-end justify-between gap-2">
+                <div className="flex flex-col leading-tight">
+                  <span className="text-lg font-semibold tabular-nums tracking-tight">
+                    {s.visits.toLocaleString()}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">
+                    visits today
+                  </span>
+                </div>
+                <div className="flex flex-col items-end leading-tight">
+                  <span className="text-sm font-medium tabular-nums">
+                    {rate}%
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">
+                    talk-through
+                  </span>
+                </div>
               </div>
             </Link>
           )
         })}
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
+      <div className="grid items-start gap-4 xl:grid-cols-[1.5fr_1fr]">
         <Card>
           <CardHeader className="pb-3">
             <Tabs defaultValue="traffic">
@@ -133,41 +149,25 @@ export default function SponsorsPage() {
                 </TabsList>
               </div>
               <TabsContent value="traffic" className="mt-4">
-                <div className="flex h-44 items-end gap-3">
-                  {hourlyTraffic.map((h, i) => {
+                <SponsorBarChart
+                  data={hourlyTraffic.map((h, i) => {
                     const rate = 0.4 + (i % 5) * 0.08
                     const conv = Math.round(h.scans * rate * 0.4)
-                    return (
-                      <div
-                        key={h.hour}
-                        className="flex flex-1 flex-col items-center gap-1.5"
-                      >
-                        <div className="flex w-full flex-1 flex-col justify-end gap-0.5">
-                          <div
-                            className="w-full rounded-t-sm bg-primary"
-                            style={{ height: `${(conv / maxScans) * 100}%` }}
-                          />
-                          <div
-                            className="w-full rounded-sm bg-primary/20"
-                            style={{
-                              height: `${((h.scans - conv) / maxScans) * 100}%`,
-                            }}
-                          />
-                        </div>
-                        <span className="font-mono text-[10px] text-muted-foreground">
-                          {h.hour}
-                        </span>
-                      </div>
-                    )
+                    return {
+                      label: h.hour,
+                      primary: conv,
+                      secondary: h.scans - conv,
+                    }
                   })}
-                </div>
+                  max={maxScans}
+                />
                 <div className="mt-4 flex items-center gap-4 text-[11px] text-muted-foreground">
                   <span className="flex items-center gap-1.5">
                     <span className="size-2.5 rounded-sm bg-primary" />{" "}
                     Conversations
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <span className="size-2.5 rounded-sm bg-primary/20" /> Scans
+                    <span className="size-2.5 rounded-sm bg-primary/25" /> Scans
                   </span>
                 </div>
               </TabsContent>
@@ -304,6 +304,79 @@ export default function SponsorsPage() {
           </div>
         </CardContent>
       </Card>
+    </div>
+  )
+}
+
+function SponsorBarChart({
+  data,
+  max,
+  height = 168,
+}: {
+  data: { label: string; primary: number; secondary: number }[]
+  max: number
+  height?: number
+}) {
+  return (
+    <div>
+      <div
+        className="pointer-events-none absolute inset-x-0 grid"
+        style={{ height, gridTemplateRows: "repeat(4, 1fr)" }}
+      />
+      <div
+        className="relative grid gap-2"
+        style={{
+          height,
+          gridAutoFlow: "column",
+          gridAutoColumns: "1fr",
+        }}
+      >
+        {[0, 1, 2, 3].map((i) => (
+          <div
+            key={`r${i}`}
+            className="pointer-events-none absolute inset-x-0 border-t border-dashed border-border/40"
+            style={{ top: `${i * 25}%` }}
+          />
+        ))}
+        {data.map((d) => {
+          const total = d.primary + d.secondary
+          const totalPct = Math.max((total / max) * 100, 2)
+          const primaryPct = total > 0 ? (d.primary / total) * 100 : 0
+          return (
+            <div key={d.label} className="relative h-full">
+              <div
+                className="absolute inset-x-0 bottom-0 flex flex-col overflow-hidden rounded-[3px]"
+                style={{ height: `${totalPct}%` }}
+              >
+                <div
+                  className="w-full bg-primary/25"
+                  style={{ height: `${100 - primaryPct}%` }}
+                />
+                <div
+                  className="w-full bg-primary"
+                  style={{ height: `${primaryPct}%` }}
+                />
+              </div>
+            </div>
+          )
+        })}
+      </div>
+      <div
+        className="mt-2 grid gap-2"
+        style={{
+          gridAutoFlow: "column",
+          gridAutoColumns: "1fr",
+        }}
+      >
+        {data.map((d) => (
+          <span
+            key={d.label}
+            className="text-center font-mono text-[10px] text-muted-foreground"
+          >
+            {d.label}
+          </span>
+        ))}
+      </div>
     </div>
   )
 }

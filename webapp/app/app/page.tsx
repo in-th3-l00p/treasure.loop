@@ -19,7 +19,6 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { Separator } from "@/components/ui/separator"
 import {
   Table,
   TableBody,
@@ -73,12 +72,13 @@ export default function OverviewPage() {
         </div>
       </header>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Kpi
           label="Active players"
           value={event.activePlayers.toLocaleString()}
           delta="+38 in last hour"
           trend="up"
+          sparkline={[120, 180, 240, 290, 310, 348, 372, 386]}
         />
         <Kpi
           label="Route completion"
@@ -91,12 +91,14 @@ export default function OverviewPage() {
           value={event.sponsorVisits.toLocaleString()}
           delta="+312 today"
           trend="up"
+          sparkline={[420, 680, 1020, 1480, 1980, 2380, 2810, 3124]}
         />
         <Kpi
           label="Badge mints"
           value={event.badgeMints.toLocaleString()}
           delta={`Queue: ${event.completions - event.badgeMints}`}
           trend="neutral"
+          sparkline={[8, 22, 36, 54, 72, 88, 104, 118]}
         />
       </div>
 
@@ -120,35 +122,20 @@ export default function OverviewPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="flex h-44 items-end gap-2.5">
-              {hourlyTraffic.map((h) => (
-                <div key={h.hour} className="flex flex-1 flex-col items-center gap-1.5">
-                  <div className="flex w-full flex-1 flex-col justify-end gap-0.5">
-                    <div
-                      className="w-full rounded-t-sm bg-primary/70"
-                      style={{ height: `${(h.completions / maxScans) * 100}%` }}
-                      title={`${h.completions} completions`}
-                    />
-                    <div
-                      className="w-full rounded-sm bg-primary/15"
-                      style={{
-                        height: `${((h.scans - h.completions) / maxScans) * 100}%`,
-                      }}
-                      title={`${h.scans} scans`}
-                    />
-                  </div>
-                  <span className="font-mono text-[10px] text-muted-foreground">
-                    {h.hour}
-                  </span>
-                </div>
-              ))}
-            </div>
+            <BarChart
+              data={hourlyTraffic.map((h) => ({
+                label: h.hour,
+                primary: h.completions,
+                secondary: h.scans - h.completions,
+              }))}
+              max={maxScans}
+            />
             <div className="mt-4 flex items-center gap-4 text-[11px] text-muted-foreground">
               <span className="flex items-center gap-1.5">
-                <span className="size-2.5 rounded-sm bg-primary/70" /> Completions
+                <span className="size-2.5 rounded-sm bg-primary" /> Completions
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="size-2.5 rounded-sm bg-primary/15" /> Scans
+                <span className="size-2.5 rounded-sm bg-primary/25" /> Scans
               </span>
             </div>
           </CardContent>
@@ -346,18 +333,97 @@ export default function OverviewPage() {
   )
 }
 
+function BarChart({
+  data,
+  max,
+  height = 168,
+}: {
+  data: { label: string; primary: number; secondary: number }[]
+  max: number
+  height?: number
+}) {
+  return (
+    <div
+      className="relative"
+      style={{ paddingBottom: 24 }}
+    >
+      {/* baseline rulers */}
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 grid"
+        style={{ height, gridTemplateRows: "repeat(4, 1fr)" }}
+      >
+        {[0, 1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className="border-t border-dashed border-border/40"
+          />
+        ))}
+      </div>
+      <div
+        className="relative grid gap-2"
+        style={{
+          height,
+          gridAutoFlow: "column",
+          gridAutoColumns: "1fr",
+        }}
+      >
+        {data.map((d) => {
+          const total = d.primary + d.secondary
+          const totalPct = Math.max((total / max) * 100, 2)
+          const primaryPct = total > 0 ? (d.primary / total) * 100 : 0
+          return (
+            <div key={d.label} className="relative h-full">
+              <div
+                className="absolute inset-x-0 bottom-0 flex flex-col overflow-hidden rounded-[3px]"
+                style={{ height: `${totalPct}%` }}
+              >
+                <div
+                  className="w-full bg-primary/25"
+                  style={{ height: `${100 - primaryPct}%` }}
+                />
+                <div
+                  className="w-full bg-primary"
+                  style={{ height: `${primaryPct}%` }}
+                />
+              </div>
+            </div>
+          )
+        })}
+      </div>
+      <div
+        className="mt-2 grid gap-2"
+        style={{
+          gridAutoFlow: "column",
+          gridAutoColumns: "1fr",
+        }}
+      >
+        {data.map((d) => (
+          <span
+            key={d.label}
+            className="text-center font-mono text-[10px] text-muted-foreground"
+          >
+            {d.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function Kpi({
   label,
   value,
   delta,
   trend,
   progress,
+  sparkline,
 }: {
   label: string
   value: string
   delta: string
   trend?: "up" | "down" | "neutral"
   progress?: number
+  sparkline?: number[]
 }) {
   const trendIcon =
     trend === "up" ? (
@@ -369,23 +435,57 @@ function Kpi({
     )
 
   return (
-    <Card>
-      <CardContent className="grid gap-1.5 py-4">
-        <p className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
-          {label}
-        </p>
-        <p className="text-[26px] font-semibold tabular-nums tracking-tight">
-          {value}
-        </p>
-        {progress !== undefined ? (
+    <Card className="group transition-colors hover:bg-card/80">
+      <CardContent className="grid gap-2 py-3.5">
+        <div className="flex items-start justify-between gap-2">
+          <p className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
+            {label}
+          </p>
+          {sparkline && <Sparkline data={sparkline} />}
+        </div>
+        <div className="flex items-baseline gap-2">
+          <p className="text-2xl font-semibold tabular-nums tracking-tight">
+            {value}
+          </p>
+        </div>
+        {progress !== undefined && (
           <Progress value={progress} className="h-1" />
-        ) : (
-          <Separator className="bg-border/60" />
         )}
-        <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
           {trendIcon} {delta}
         </p>
       </CardContent>
     </Card>
+  )
+}
+
+function Sparkline({ data }: { data: number[] }) {
+  const max = Math.max(...data)
+  const min = Math.min(...data)
+  const range = max - min || 1
+  const width = 60
+  const height = 18
+  const stepX = width / (data.length - 1)
+  const points = data
+    .map((d, i) => `${i * stepX},${height - ((d - min) / range) * height}`)
+    .join(" ")
+
+  return (
+    <svg
+      width={width}
+      height={height}
+      viewBox={`0 0 ${width} ${height}`}
+      className="text-primary/60 transition-colors group-hover:text-primary"
+      aria-hidden
+    >
+      <polyline
+        points={points}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   )
 }

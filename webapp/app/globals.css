@@ -214,7 +214,7 @@ main {
   background: var(--foreground);
 }
 
-nav {
+.site-header nav {
   display: flex;
   gap: 2rem;
   align-items: center;
@@ -224,13 +224,13 @@ nav {
   letter-spacing: 0.005em;
 }
 
-nav a,
+.site-header nav a,
 .header-cta,
 .secondary-action {
   transition: color 180ms ease, border-color 180ms ease, background 180ms ease, transform 180ms ease;
 }
 
-nav a:hover,
+.site-header nav a:hover,
 .secondary-action:hover {
   color: var(--foreground);
 }
