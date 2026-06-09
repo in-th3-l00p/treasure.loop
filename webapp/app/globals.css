@@ -1362,6 +1362,174 @@ p {
   box-shadow: 0 0 0 3px color-mix(in oklab, currentColor 18%, transparent);
 }
 
+/* ─────────────────────── Clerk widget integration ──────────────────────
+   Clerk renders multiple nested containers (rootBox > cardBox > card)
+   each of which can carry a background, border, shadow, or padding.
+   The `appearance.elements` API in app/layout.tsx covers the leaves;
+   these rules flatten the structural wrappers so the widget reads as
+   a plain inline form, not a pasted dialog.                            */
+
+.cl-rootBox,
+.cl-cardBox,
+.cl-card,
+.cl-signIn-root,
+.cl-signUp-root,
+.cl-userProfile-root,
+.cl-organizationProfile-root {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  padding: 0 !important;
+  width: 100% !important;
+  max-width: none !important;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+/* Some Clerk versions split the footer into its own bordered band. */
+.cl-footer,
+.cl-footer > div,
+.cl-cardFooter,
+.cl-internal-footer {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin-top: 0.75rem !important;
+}
+
+/* Make the "or"-style divider sit closer and use our scale. */
+.cl-dividerRow {
+  margin: 0.75rem 0 !important;
+}
+.cl-dividerLine {
+  background: var(--border) !important;
+}
+.cl-dividerText {
+  color: oklch(62% 0.004 286 / 0.7) !important;
+  font-family: var(--font-geist-mono), monospace !important;
+  font-size: 10px !important;
+  letter-spacing: 0.14em !important;
+  text-transform: uppercase !important;
+}
+
+/* Hide Clerk's keyless-mode development helpers. The class hashes
+   (cl-internal-*) are version-pinned and may change after a Clerk
+   upgrade — if a dev banner reappears, inspect the page and add its
+   new class here. These have zero effect once real Clerk keys are
+   configured (the helpers don't render in production mode). */
+.cl-internal-bugq7m,           /* floating "Configure your application" panel */
+.cl-internal-1jp5gc9,          /* small "Development mode" badge inside form */
+[data-clerk-development-banner],
+[class*="developmentMode"],
+[class*="DevelopmentMode"],
+iframe[src*="accounts.dev/"][src*="keyless"] {
+  display: none !important;
+}
+
+/* Also hide their parent banners if Clerk wraps them. */
+.cl-internal-bugq7m + *,
+[class*="cl-internal-"]:has(> .cl-internal-bugq7m),
+[class*="cl-internal-"]:has(> .cl-internal-1jp5gc9) {
+  display: none !important;
+}
+
+/* Inputs: hand control back to the variables we set in appearance. */
+.cl-formFieldInput {
+  background: oklch(14% 0.004 286) !important;
+  border: 1px solid var(--border) !important;
+  color: oklch(96% 0.004 286) !important;
+  height: 36px !important;
+  padding: 0 0.75rem !important;
+  font-size: 14px !important;
+  box-shadow: none !important;
+}
+.cl-formFieldInput:focus,
+.cl-formFieldInput:focus-visible {
+  border-color: oklch(73% 0.17 296 / 0.5) !important;
+  box-shadow: 0 0 0 3px oklch(73% 0.17 296 / 0.15) !important;
+  outline: none !important;
+}
+
+/* Primary action matches our shadcn Button. */
+.cl-formButtonPrimary {
+  background: oklch(73% 0.17 296) !important;
+  color: oklch(98% 0.005 286) !important;
+  height: 36px !important;
+  border-radius: 0.5rem !important;
+  font-weight: 500 !important;
+  font-size: 14px !important;
+  text-transform: none !important;
+  box-shadow: none !important;
+  transition: background-color 150ms ease !important;
+}
+.cl-formButtonPrimary:hover {
+  background: oklch(70% 0.17 296) !important;
+}
+.cl-formButtonPrimary::after {
+  display: none !important;
+}
+
+/* Social provider buttons match our outline. */
+.cl-socialButtonsBlockButton {
+  background: oklch(14% 0.004 286 / 0.6) !important;
+  border: 1px solid var(--border) !important;
+  color: oklch(96% 0.004 286) !important;
+  height: 36px !important;
+  border-radius: 0.5rem !important;
+  font-weight: 400 !important;
+  font-size: 14px !important;
+  text-transform: none !important;
+  box-shadow: none !important;
+}
+.cl-socialButtonsBlockButton:hover {
+  background: oklch(18% 0.004 286 / 0.8) !important;
+}
+
+/* Labels above inputs */
+.cl-formFieldLabel {
+  color: oklch(62% 0.004 286) !important;
+  font-size: 11px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+  margin-bottom: 0.25rem !important;
+}
+
+/* Secondary text + footer link */
+.cl-footerActionText,
+.cl-footerAction__signIn,
+.cl-footerAction__signUp {
+  color: oklch(62% 0.004 286) !important;
+  font-size: 12px !important;
+}
+.cl-footerActionLink {
+  color: oklch(73% 0.17 296) !important;
+  font-weight: 500 !important;
+  font-size: 12px !important;
+}
+.cl-footerActionLink:hover {
+  color: oklch(76% 0.17 296) !important;
+}
+
+/* Match Clerk's autofill background to our input chrome so browser
+   autofill doesn't paint with default white/yellow. */
+.cl-formFieldInput:-webkit-autofill,
+.cl-formFieldInput:-webkit-autofill:hover,
+.cl-formFieldInput:-webkit-autofill:focus {
+  -webkit-text-fill-color: oklch(96% 0.004 286);
+  -webkit-box-shadow: 0 0 0px 1000px oklch(14% 0.004 286) inset;
+  caret-color: oklch(96% 0.004 286);
+}
+
+/* Forgot-password / help links */
+.cl-formFieldAction {
+  color: oklch(62% 0.004 286) !important;
+  font-size: 11px !important;
+}
+.cl-formFieldAction:hover {
+  color: oklch(96% 0.004 286) !important;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

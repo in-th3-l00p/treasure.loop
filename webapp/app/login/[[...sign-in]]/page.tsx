@@ -17,9 +17,11 @@ export default function SignInPage() {
               className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
               <ArrowLeftIcon className="size-3.5" />
-              Back to TreasureLoop
+              TreasureLoop
             </Link>
-            <span className="text-xs text-muted-foreground">Organizer console</span>
+            <span className="text-xs text-muted-foreground">
+              Organizer console
+            </span>
           </div>
 
           <div className="relative my-12 grid max-w-xl gap-6 lg:my-0">
@@ -30,7 +32,7 @@ export default function SignInPage() {
               <h1 className="font-heading text-5xl font-medium leading-[0.95] tracking-tight text-foreground md:text-6xl">
                 Run the loop without losing the floor.
               </h1>
-              <p className="text-base leading-relaxed text-muted-foreground">
+              <p className="max-w-lg text-base leading-relaxed text-muted-foreground">
                 Sign in to configure checkpoints, monitor sponsor traffic,
                 and operate the prize desk during your event.
               </p>
@@ -51,14 +53,27 @@ export default function SignInPage() {
           </div>
         </section>
 
-        <section className="flex items-center justify-center p-6 lg:p-10">
-          <SignIn
-            routing="path"
-            path="/login"
-            signUpUrl="/sign-up"
-            forceRedirectUrl="/app"
-            signUpForceRedirectUrl="/app"
-          />
+        <section className="flex items-center justify-center p-6 lg:p-12">
+          <div className="grid w-full max-w-[360px] gap-7">
+            <header className="grid gap-1">
+              <p className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
+                Welcome back
+              </p>
+              <h2 className="text-xl font-medium tracking-tight text-foreground">
+                Sign in to your operator account
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Continue with your work email or a single-sign-on provider.
+              </p>
+            </header>
+            <SignIn
+              routing="path"
+              path="/login"
+              signUpUrl="/sign-up"
+              forceRedirectUrl="/app"
+              signUpForceRedirectUrl="/app"
+            />
+          </div>
         </section>
       </div>
     </main>

@@ -15,9 +15,11 @@ export default function SignUpPage() {
               className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
               <ArrowLeftIcon className="size-3.5" />
-              Back to TreasureLoop
+              TreasureLoop
             </Link>
-            <span className="text-xs text-muted-foreground">Operator sign up</span>
+            <span className="text-xs text-muted-foreground">
+              Operator sign up
+            </span>
           </div>
 
           <div className="relative my-12 grid max-w-xl gap-6 lg:my-0">
@@ -28,9 +30,10 @@ export default function SignUpPage() {
               <h1 className="font-heading text-5xl font-medium leading-[0.95] tracking-tight text-foreground md:text-6xl">
                 Stand up an event in one afternoon.
               </h1>
-              <p className="text-base leading-relaxed text-muted-foreground">
+              <p className="max-w-lg text-base leading-relaxed text-muted-foreground">
                 Create your account, spin up an organization for the event,
-                and invite the booth staff and prize-desk operators you need.
+                and invite the booth staff and prize-desk operators you
+                need.
               </p>
             </div>
 
@@ -49,7 +52,8 @@ export default function SignUpPage() {
           </div>
 
           <div className="relative text-xs text-muted-foreground">
-            <p>Already have an account?{" "}
+            <p>
+              Already have an account?{" "}
               <Link href="/login" className="text-foreground underline">
                 Sign in instead
               </Link>
@@ -58,14 +62,28 @@ export default function SignUpPage() {
           </div>
         </section>
 
-        <section className="flex items-center justify-center p-6 lg:p-10">
-          <SignUp
-            routing="path"
-            path="/sign-up"
-            signInUrl="/login"
-            forceRedirectUrl="/app"
-            signInForceRedirectUrl="/app"
-          />
+        <section className="flex items-center justify-center p-6 lg:p-12">
+          <div className="grid w-full max-w-[360px] gap-7">
+            <header className="grid gap-1">
+              <p className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
+                Create account
+              </p>
+              <h2 className="text-xl font-medium tracking-tight text-foreground">
+                Set up your operator profile
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                You can invite your team after creating the event
+                organization.
+              </p>
+            </header>
+            <SignUp
+              routing="path"
+              path="/sign-up"
+              signInUrl="/login"
+              forceRedirectUrl="/app"
+              signInForceRedirectUrl="/app"
+            />
+          </div>
         </section>
       </div>
     </main>
