@@ -98,15 +98,52 @@ app/
   sign-up/[[...sign-up]]/       Clerk SignUp (custom shell)
   no-organization/              prompt to create or join an org
   forbidden/                    role-denied page
+  api/
+    webhooks/clerk/             organization.* → events row provisioning
+    health/                     uptime probe (public)
+    play/                       attendee API (SIWE-protected)
   app/                          operator console
-    layout.tsx                  requireMember + AppShell
+    layout.tsx                  requireMember + AppShell + auto-provision
     page.tsx                    overview (any member)
     routes/                     route builder (organizer only)
-    prize-desk/                 verification (prize_desk, organizer)
     sponsors/                   sponsor report (sponsor, organizer)
+    prize-desk/                 verification + redemption (prize_desk, organizer)
+    booth/                      booth-staff kiosk (booth_staff, organizer)
+    team/                       Clerk invitations + member list
+    preflight/                  go/no-go checks
     _components/                AppShell, CommandPalette
+  play/                         attendee surface (wallet auth, no Clerk)
 proxy.ts                        Clerk middleware + authz at the edge
-lib/authz.ts                    policy module
-lib/auth-server.ts              server helpers (getSubject, requireRoles)
-tests/                          Vitest unit + config tests
+db/
+  schema.ts                     11-table Drizzle schema
+  client.ts                     Neon-HTTP / postgres-js dual driver
+  migrate.ts + seed.ts          npm run db:migrate / db:seed
+  migrations/                   committed SQL
+lib/
+  authz.ts                      policy module
+  auth-server.ts                Clerk → AuthSubject + requireRoles
+  event-provisioning.ts         Clerk org → events row
+  event-queries.ts              read-only operator queries
+  event-actions.ts              Server Actions: CRUD for routes/checkpoints/sponsors/rewards
+  staff-actions.ts              invite + assign team
+  checkpoint-codes.ts           TOTP helpers (otpauth)
+  badge-contract.ts             ABI + addresses
+  badge-onchain.ts              viem readContract for prize-desk
+  mint-permits.ts               EIP-712 sign on the server
+  player-store.ts               attendee progress (Drizzle-backed)
+  play-session.ts               iron-session for SIWE
+  preflight.ts                  go/no-go check generator
+  rate-limit.ts                 in-process sliding-window limiter
+tests/                          Vitest — 105 tests across 9 files
 ```
+
+## Testing posture
+
+| Layer | Tool | How |
+|---|---|---|
+| Policy / authz | Vitest | pure-function checks per role × per route |
+| SIWE | Vitest | real signatures via viem, replays + tampers |
+| DB models | Vitest + PGlite | full schema applied in-memory, real SQL exercised |
+| Server Actions | Vitest + PGlite | atomic decrement, tenant isolation, rollback |
+| Rate limiter | Vitest | window resets, scoping, key extraction |
+| Contract | Foundry | 15 tests + 256-run fuzz |

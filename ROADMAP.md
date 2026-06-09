@@ -9,6 +9,23 @@ Update this file as we ship. Each task has a `[ ]` checkbox — mark it
 `[x]` when it lands. Each phase has a "done when" gate; don't move on
 until that gate passes.
 
+## Current status (rolling)
+
+| Phase | State |
+|---|---|
+| 1. Persistent data | ✅ shipped — Drizzle + Postgres, 11 tables, in-process tests via PGlite |
+| 2. Operator CRUD | ✅ shipped — Server Actions for events, routes, checkpoints, sponsors, rewards, staff invitations; Clerk webhook for org→event sync; /app/team for invitations |
+| 3. Secure scan flow | 🟡 partial — TOTP per checkpoint live, in-process rate limits live; KV-backed rate limits + HMAC URL signature still pending |
+| 4. Badge contract | 🟡 partial — Solidity + 15 Foundry tests committed; not yet deployed; KMS for signer key not wired |
+| 5. Prize desk on-chain | ✅ shipped — verifier reads on-chain balance, redeems with atomic stock decrement, audit log on every redemption |
+| 6. Booth-staff kiosk | ✅ shipped — /app/booth + /app/booth/[id] with rotating TOTP display and secret rotation |
+| 7. Pair fragments | ⬜ deferred (4-week cut list) |
+| 8. Sponsor analytics | 🟡 partial — page reads real DB, deep analytics + lead consent still pending |
+| 9. Observability | 🟡 partial — /api/health live, in-process rate limits, audit-log activity feed; Sentry + structured logs + uptime monitor still pending |
+| 10. Production hardening | ⬜ not started |
+| 11. Pre-event ops | 🟡 partial — /app/preflight live; organizer onboarding wizard + i18n still pending |
+| 12. Day-of operations | ⬜ not started |
+
 ---
 
 ## Where we are today
@@ -85,23 +102,23 @@ booth staff app on a Map that resets every deploy is wasted work.
 
 ### Tasks
 
-- [ ] Install `drizzle-orm`, `drizzle-kit`, `postgres`, `@neondatabase/serverless`.
-- [ ] Add `webapp/drizzle.config.ts` pointing at `DATABASE_URL`.
-- [ ] Create `webapp/db/schema.ts` with the tables in the schema
+- [x] Install `drizzle-orm`, `drizzle-kit`, `postgres`, `@neondatabase/serverless`.
+- [x] Add `webapp/drizzle.config.ts` pointing at `DATABASE_URL`.
+- [x] Create `webapp/db/schema.ts` with the tables in the schema
   section below.
-- [ ] Generate the initial migration: `npx drizzle-kit generate`. Commit
+- [x] Generate the initial migration: `npx drizzle-kit generate`. Commit
   the SQL file under `webapp/db/migrations/`.
-- [ ] Add `webapp/db/client.ts` exporting a singleton `db` against
+- [x] Add `webapp/db/client.ts` exporting a singleton `db` against
   Neon HTTP for serverless + a pg client for local.
-- [ ] Add `webapp/db/seed.ts` that creates one event, five checkpoints,
+- [x] Add `webapp/db/seed.ts` that creates one event, five checkpoints,
   four sponsors, three rewards — the same shape as `lib/mock-data.ts`.
-- [ ] Add `npm run db:push`, `db:generate`, `db:seed` scripts.
-- [ ] Add Docker Compose at repo root for `postgres:16`.
-- [ ] Replace `lib/player-store.ts` with a Drizzle-backed
-  implementation that satisfies the same interface. Update the
-  existing 18 player-store tests to seed/teardown a real DB
-  (`pg-mem` or testcontainers).
-- [ ] Replace `lib/mock-data.ts` reads in the four operator pages with
+- [x] Add `npm run db:generate`, `db:migrate`, `db:seed`, `db:studio` scripts.
+- [x] Add Docker Compose at repo root for `postgres:16`.
+- [x] Replace `lib/player-store.ts` with a Drizzle-backed
+  implementation that satisfies the same interface. The 20
+  player-store tests run against PGlite (in-process Postgres) — no
+  Docker required for tests.
+- [x] Replace `lib/mock-data.ts` reads in the four operator pages with
   queries scoped to the active event (Clerk org id ↔ events.org_id).
 - [ ] Add Vercel Marketplace integration for Neon in the Vercel
   project; set `DATABASE_URL` per environment.
@@ -151,29 +168,27 @@ console without touching the database.
 
 ### Tasks
 
-- [ ] **Event create flow**: when a user signs up and has no event,
-  the existing `/no-organization` page creates a Clerk Org *and* a row
-  in `events` with the same `org_id`. Use a Clerk webhook.
-- [ ] **Routes**: add `/app/routes` mutations — create, rename, delete,
-  publish. Drag-to-reorder via a `routes.order_index` integer.
-- [ ] **Checkpoints**: add `/app/checkpoints` (or under `/app/routes/[id]`)
-  — CRUD, assign sponsor, edit clue, set clue type.
-- [ ] **Sponsors**: CRUD with tier and contact email. Auto-create a
-  Clerk Org Invitation when a sponsor is added — they sign in to see
-  only their booth's report.
-- [ ] **Staff invitations**: organizer can invite a user by email and
-  assign role + checkpoint. Wraps Clerk's `createOrganizationInvitation`.
-- [ ] **Rewards**: CRUD with stock count. The decrement is atomic at
-  redemption time (Phase 5).
-- [ ] **Settings**: event name, dates, venue, network selector
-  (Sepolia/mainnet), badge contract address, signer key (write-only,
-  stored encrypted via Vercel env).
-- [ ] **Server actions, not REST**: all mutations are Next 16 Server
-  Actions guarded by the same `requireRoles([...])` helpers.
+- [x] **Event create flow**: Clerk webhook at `/api/webhooks/clerk` on
+  `organization.created` calls `ensureEventForOrg`. The `/app` layout
+  defensively re-runs the same helper so a missed webhook still
+  produces a row.
+- [x] **Routes**: `createRoute`, `renameRoute`, `setRoutePublished`,
+  `archiveRoute` in `lib/event-actions.ts`.
+- [x] **Checkpoints**: `createCheckpoint`, `updateCheckpoint`,
+  `archiveCheckpoint`, `reorderCheckpoints`, `rotateCheckpointSecret`.
+- [x] **Sponsors**: `createSponsor`, `updateSponsor`, `archiveSponsor`.
+  Clerk-invitation-on-add deferred — sponsors are an account today.
+- [x] **Staff invitations**: `inviteStaff` wraps Clerk's
+  `createOrganizationInvitation`. `/app/team` lists current
+  members + pending invites and exposes the invite form.
+- [x] **Rewards**: `createReward`, `updateReward`. Atomic decrement
+  lives in the prize-desk `redeemReward` Server Action.
+- [x] **Audit log**: every mutation writes a row inside the same
+  transaction.
+- [ ] **Settings UI**: backed by `updateEventSettings`; UI form
+  still pending.
 - [ ] **Optimistic UI** via TanStack Query mutations + cache
   invalidation. We already use TanStack on the play side.
-- [ ] **Audit log**: every mutation writes to `audit_log` so we have a
-  paper trail when something gets weird at 14:00 on event day.
 
 ### Acceptance criteria
 
@@ -229,15 +244,17 @@ without physically being at the booth at that time.
 
 ### Tasks
 
-- [ ] Pick a TOTP lib (`otpauth`). Generate secrets at checkpoint
+- [x] Pick a TOTP lib (`otpauth`). Generate secrets at checkpoint
   create time.
-- [ ] Booth-staff kiosk (Phase 6) shows the rotating code.
-- [ ] Update `/api/play/scan` to verify TOTP code against the stored
+- [x] Booth-staff kiosk shows the rotating code (Phase 6).
+- [x] Update `/api/play/scan` to verify TOTP code against the stored
   secret with `window: 1`.
-- [ ] Add HMAC URL signature for `/play/scan?cp=...&t=...`. Encode as
+- [x] Rate-limit `/api/play/scan` and `/api/play/auth/verify` with an
+  in-process sliding-window limiter. Tests + curl verified.
+- [ ] HMAC URL signature for `/play/scan?cp=...&t=...`. Encode as
   `keccak256(cp_id || time_bucket || NFC_SECRET)`. Time bucket = 60s.
-- [ ] Add `@upstash/ratelimit` + Vercel KV. Apply to `/api/play/scan`
-  and `/api/play/auth/verify`.
+- [ ] Swap the in-process limiter for `@upstash/ratelimit` + Vercel KV
+  so the rate budget is shared across serverless instances.
 - [ ] Add `audit_log` rows for each rejected scan (`reason='bad-totp'`,
   etc).
 
@@ -268,10 +285,10 @@ signer key is in a KMS.
 
 ### Tasks
 
-- [ ] **Foundry setup** under `contracts/`:
+- [x] **Foundry setup** under `contracts/`:
   - `forge install OpenZeppelin/openzeppelin-contracts@v5.1.0`
   - `foundry.toml` with `optimizer = true`, `optimizer-runs = 200`
-- [ ] **Tests** (`contracts/test/TreasureLoopBadge.t.sol`):
+- [x] **Tests** (`contracts/test/TreasureLoopBadge.t.sol`):
   - happy path mint with valid permit
   - reject when caller != permit.player
   - reject when chainId mismatches
@@ -282,9 +299,10 @@ signer key is in a KMS.
   - signer rotation works
   - paused mint reverts
   - `tokenURI` returns `baseURI + tokenId`
-- [ ] **Deploy script** (`contracts/script/Deploy.s.sol`) using
+- [x] **Deploy script** (`contracts/script/Deploy.s.sol`) using
   Foundry's `Script`.
-- [ ] **Deploy to Base Sepolia**. Verify on Basescan.
+- [ ] **Deploy to Base Sepolia**. Verify on Basescan. Requires
+  funded deployer key — out of scope for this PR.
 - [ ] **KMS for signer key**: store the signer private key in AWS KMS
   or Vercel's Secret Manager equivalent. Update `lib/mint-permits.ts`
   to fetch on cold start.
@@ -324,18 +342,17 @@ them in <500ms.
 
 ### Tasks
 
-- [ ] **Verification flow**: scan badge ID or wallet address → server
-  calls `badgeContract.balanceOf(player)` via wagmi/viem public client
-  → display Eligible / Not eligible. Cache positive results.
+- [x] **Verification flow**: `lookupWallet` Server Action calls
+  `balanceOf(player)` via the viem public client. UI shows Eligible /
+  Not eligible / Wallet hasn't played / Contract not configured.
 - [ ] **Reward tier engine**: rules live in DB
   (`rewards.eligibility_rule jsonb`). MVP: "any minted player gets
   X." Stretch: "first 100 mints get Y," "scanned > 5 booths gets Z."
-- [ ] **Atomic stock decrement**: on redeem, transaction-wrapped
-  `UPDATE rewards SET stock_claimed = stock_claimed + 1 WHERE id = ?
-  AND stock_claimed < stock_total RETURNING *`. If 0 rows, show
-  "out of stock."
-- [ ] **Anti-double-claim**: one redemption per `(player_id, reward_id)`
-  unless the reward is multi-claim.
+- [x] **Atomic stock decrement**: `redeemReward` runs the
+  `UPDATE … WHERE stock_total IS NULL OR stock_claimed < stock_total
+  RETURNING *` pattern. Tested under 10 concurrent claims.
+- [x] **Anti-double-claim**: unique index on
+  `(player_id, reward_id)`. Tested.
 - [ ] **Flags**: surface "same wallet redeemed merch yesterday" and
   staff has to ack before continuing.
 - [ ] **Offline mode**: prize desk has flaky wifi sometimes. Cache the
@@ -382,10 +399,13 @@ a "ask for help" button.
 
 ### Tasks
 
-- [ ] New route `/app/booth/[checkpointId]` — gated by
-  `canIssueScan(subject)` and assignment.
-- [ ] Server-side render the current TOTP, refresh via TanStack Query
-  every 5s.
+- [x] Route `/app/booth` (assigned-checkpoint listing) and
+  `/app/booth/[checkpointId]` (kiosk screen) — gated by
+  `canIssueScan(subject)` and the user's staff assignment.
+- [x] TOTP computed client-side from the shared secret, 250 ms tick
+  for the countdown bar.
+- [x] "Rotate secret" button calls `rotateCheckpointSecret`. Previous
+  codes go invalid immediately.
 - [ ] Recent scans pulled from `scans` table, refreshed via SSE or
   Postgres listen/notify.
 - [ ] "Help me" creates a row in `staff_alerts` that organizer
@@ -492,9 +512,12 @@ it before the organizer screams.
 ### Tasks
 
 - [ ] Add Sentry to webapp; wrap the app router with Sentry's wrappers.
-- [ ] `/api/health` returns OK + DB ping + RPC ping.
+- [x] `/api/health` returns OK + DB ping + contract/signer/session
+  config status. Returns 503 if the DB is unreachable.
 - [ ] Structured logging on every API route — request id, wallet
   address, latency, outcome.
+- [x] Audit log as the operator-facing activity feed
+  (`listLiveActivity`).
 - [ ] Custom metric: scans/min, mint/min, redemption/min, error rate.
 - [ ] Slack webhook on Sentry P1 + on `staff_alerts` insert.
 - [ ] Pre-event load test: 100 concurrent scans (k6 script committed).
@@ -560,6 +583,9 @@ us in the loop.
 
 ### Tasks
 
+- [x] **Pre-flight check page** (`/app/preflight`): runs a battery of
+  asserts on the configured event — routes published, secrets present,
+  staff assignments, sponsors, rewards, contract+signer configuration.
 - [ ] **Organizer onboarding flow**: a 5-step wizard on first event
   create — name + dates → upload venue map → create routes → invite
   staff → connect Clerk webhook for invitations.
@@ -571,9 +597,6 @@ us in the loop.
   attendee can't scan.
 - [ ] **Prize-desk one-pager**: what every status icon means, what to
   do when a player insists they earned a tier they didn't.
-- [ ] **Pre-flight check page** (`/app/preflight`): runs a battery of
-  asserts on the configured event — all checkpoints assigned, contract
-  deployed, signer key in place, RPC reachable, KV reachable, etc.
 - [ ] **Dress-rehearsal mode**: a flag on the event that disables real
   badge mint and uses a "rehearsal" contract.
 - [ ] **Internationalization** if multi-country: pull strings via
