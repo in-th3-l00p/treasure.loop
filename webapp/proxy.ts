@@ -7,6 +7,7 @@ const isPublicRoute = createRouteMatcher([
   "/",
   "/login(.*)",
   "/sign-up(.*)",
+  "/play(.*)", // attendee surface — wallet auth, not Clerk
   "/api/health",
 ])
 
