@@ -15,6 +15,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { requireRoles } from "@/lib/auth-server"
+import { ROLES } from "@/lib/authz"
 import {
   recentRedemptions,
   rewards,
@@ -22,7 +24,8 @@ import {
 } from "@/lib/mock-data"
 import { cn } from "@/lib/utils"
 
-export default function PrizeDeskPage() {
+export default async function PrizeDeskPage() {
+  await requireRoles([ROLES.ORGANIZER, ROLES.PRIZE_DESK])
   const current = verificationQueue[0]
   const others = verificationQueue.slice(1)
 

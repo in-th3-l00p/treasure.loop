@@ -12,10 +12,13 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs"
+import { requireRoles } from "@/lib/auth-server"
+import { ROLES } from "@/lib/authz"
 import { checkpoints, hourlyTraffic, sponsors } from "@/lib/mock-data"
 import { cn } from "@/lib/utils"
 
-export default function SponsorsPage() {
+export default async function SponsorsPage() {
+  await requireRoles([ROLES.ORGANIZER, ROLES.SPONSOR])
   const activeSponsor = sponsors[0]
   const activeCheckpoint = checkpoints.find(
     (c) => c.sponsor === activeSponsor.name

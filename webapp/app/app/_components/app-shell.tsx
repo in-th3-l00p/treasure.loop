@@ -3,8 +3,8 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
+import { OrganizationSwitcher, UserButton } from "@clerk/nextjs"
 import {
-  ChevronsUpDownIcon,
   GaugeIcon,
   GiftIcon,
   LifeBuoyIcon,
@@ -69,22 +69,51 @@ function NavItem({
 
 function NavSection({
   label,
-  children,
+  items,
+  reachable,
+  isActive,
 }: {
   label: string
-  children: React.ReactNode
+  items: { name: string; href: string; icon: React.ComponentType<{ className?: string }> }[]
+  reachable: Set<string>
+  isActive: (href: string) => boolean
 }) {
+  const visible = items.filter((i) => reachable.has(i.href) || !reachableKnowsAbout(i.href, reachable))
+  if (visible.length === 0) return null
   return (
     <div className="grid gap-0.5">
       <p className="px-2 pt-4 pb-1 text-[11px] text-sidebar-foreground/35">
         {label}
       </p>
-      {children}
+      {visible.map((item) => (
+        <NavItem
+          key={item.name}
+          href={item.href}
+          icon={item.icon}
+          active={isActive(item.href)}
+        >
+          {item.name}
+        </NavItem>
+      ))}
     </div>
   )
 }
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+// If `reachable` was built from APP_ROUTES, it only mentions routes whose
+// policy was declared. For routes the policy module doesn't know about
+// (e.g. /app/settings) we keep them visible by default — same as the
+// middleware fallback.
+function reachableKnowsAbout(href: string, reachable: Set<string>): boolean {
+  return reachable.has(href) || Array.from(reachable).some((h) => href.startsWith(`${h}/`))
+}
+
+export function AppShell({
+  children,
+  reachable,
+}: {
+  children: React.ReactNode
+  reachable: Set<string>
+}) {
   const pathname = usePathname()
   const [paletteOpen, setPaletteOpen] = useState(false)
 
@@ -118,23 +147,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <div className="px-3">
-          <button
-            type="button"
-            className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left transition-colors hover:bg-sidebar-accent"
-          >
-            <span className="grid size-6 shrink-0 place-items-center rounded bg-primary/12 text-[10px] font-medium text-primary">
-              EC
-            </span>
-            <span className="flex min-w-0 flex-1 flex-col leading-tight">
-              <span className="truncate text-[13px] text-sidebar-foreground">
-                ETH Cluj 2026
-              </span>
-              <span className="truncate text-[11px] text-sidebar-foreground/45">
-                {event.dates}
-              </span>
-            </span>
-            <ChevronsUpDownIcon className="size-3 text-sidebar-foreground/40" />
-          </button>
+          <OrganizationSwitcher
+            hidePersonal
+            afterCreateOrganizationUrl="/app"
+            afterSelectOrganizationUrl="/app"
+            appearance={{
+              elements: {
+                rootBox: "w-full",
+                organizationSwitcherTrigger:
+                  "w-full px-2 py-2 rounded-md hover:bg-sidebar-accent transition-colors",
+                organizationPreviewMainIdentifier:
+                  "text-[13px] text-sidebar-foreground truncate",
+                organizationPreviewSecondaryIdentifier:
+                  "text-[11px] text-sidebar-foreground/45 truncate",
+                organizationSwitcherTriggerIcon:
+                  "text-sidebar-foreground/40 size-3",
+              },
+            }}
+          />
         </div>
 
         <div className="px-3 pt-3">
@@ -150,31 +180,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="flex-1 overflow-y-auto px-3 pt-1 pb-4">
-          <NavSection label="Manage">
-            {primaryNav.map((item) => (
-              <NavItem
-                key={item.name}
-                href={item.href}
-                icon={item.icon}
-                active={isActive(item.href)}
-              >
-                {item.name}
-              </NavItem>
-            ))}
-          </NavSection>
-
-          <NavSection label="Operations">
-            {opsNav.map((item) => (
-              <NavItem
-                key={item.name}
-                href={item.href}
-                icon={item.icon}
-                active={isActive(item.href)}
-              >
-                {item.name}
-              </NavItem>
-            ))}
-          </NavSection>
+          <NavSection
+            label="Manage"
+            items={primaryNav}
+            reachable={reachable}
+            isActive={isActive}
+          />
+          <NavSection
+            label="Operations"
+            items={opsNav}
+            reachable={reachable}
+            isActive={isActive}
+          />
         </nav>
 
         <div className="px-3 pb-4">
@@ -190,18 +207,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </NavItem>
             ))}
           </div>
-          <div className="mt-3 flex items-center gap-2.5 px-2 pt-3 text-[13px]">
-            <span className="grid size-6 place-items-center rounded-full bg-primary/15 text-[10px] font-medium text-primary">
-              CT
-            </span>
-            <div className="flex min-w-0 flex-1 flex-col leading-tight">
-              <span className="truncate text-sidebar-foreground">
-                Catalin Tisca
-              </span>
-              <span className="truncate text-[11px] text-sidebar-foreground/45">
-                Organizer
-              </span>
-            </div>
+          <div className="mt-3 flex items-center gap-2.5 px-2 pt-3">
+            <UserButton
+              appearance={{
+                elements: {
+                  userButtonAvatarBox: "size-7",
+                  userButtonOuterIdentifier:
+                    "text-[13px] text-sidebar-foreground",
+                  userButtonBox: "flex-row-reverse",
+                },
+              }}
+              showName
+            />
           </div>
         </div>
       </aside>
@@ -228,7 +245,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="flex-1">{children}</div>
       </main>
 
-      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
+      <CommandPalette
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
+        reachable={reachable}
+      />
     </div>
   )
 }

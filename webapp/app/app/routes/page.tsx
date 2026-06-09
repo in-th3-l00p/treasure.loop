@@ -24,6 +24,8 @@ import {
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
+import { requireRoles } from "@/lib/auth-server"
+import { ROLES } from "@/lib/authz"
 import { checkpoints } from "@/lib/mock-data"
 import { cn } from "@/lib/utils"
 
@@ -35,7 +37,8 @@ const clueLabel: Record<string, string> = {
 
 const checkpointClues = ["scan", "staff", "staff", "pair", "scan"] as const
 
-export default function RoutesPage() {
+export default async function RoutesPage() {
+  await requireRoles([ROLES.ORGANIZER])
   const selectedIndex = 2
   const selected = checkpoints[selectedIndex]
 

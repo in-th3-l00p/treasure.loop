@@ -14,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { requireMember } from "@/lib/auth-server"
 import {
   activity,
   checkpoints,
@@ -37,7 +38,8 @@ const statusText: Record<string, string> = {
   Offline: "text-muted-foreground",
 }
 
-export default function OverviewPage() {
+export default async function OverviewPage() {
+  await requireMember()
   const maxScans = Math.max(...hourlyTraffic.map((h) => h.scans))
   const needsAttention = checkpoints.filter((c) => c.status !== "Healthy")
 

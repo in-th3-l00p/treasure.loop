@@ -45,9 +45,11 @@ const statusDot: Record<string, string> = {
 export function CommandPalette({
   open,
   onOpenChange,
+  reachable,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
+  reachable: Set<string>
 }) {
   const router = useRouter()
 
@@ -55,6 +57,12 @@ export function CommandPalette({
     onOpenChange(false)
     router.push(href)
   }
+
+  // The Jump-to items below all map to declared APP_ROUTES, so we look
+  // up reachability directly. Action items are intentionally not gated —
+  // they describe what the user might want to do, even if the eventual
+  // destination redirects them.
+  const canReach = (href: string) => reachable.has(href)
 
   return (
     <CommandDialog
@@ -76,26 +84,45 @@ export function CommandPalette({
         </CommandEmpty>
 
         <CommandGroup heading="Jump to">
-          <CommandItem onSelect={() => go("/app")} keywords={["live", "dashboard", "home"]}>
-            <GaugeIcon /> Live overview
-            <CommandShortcut>G L</CommandShortcut>
-          </CommandItem>
-          <CommandItem onSelect={() => go("/app/routes")} keywords={["configure", "build"]}>
-            <RouteIcon /> Configure route
-            <CommandShortcut>G R</CommandShortcut>
-          </CommandItem>
-          <CommandItem onSelect={() => go("/app/prize-desk")} keywords={["verify", "redeem"]}>
-            <ShieldCheckIcon /> Prize desk
-            <CommandShortcut>G V</CommandShortcut>
-          </CommandItem>
-          <CommandItem onSelect={() => go("/app/sponsors")}>
-            <TicketIcon /> Sponsors
-            <CommandShortcut>G S</CommandShortcut>
-          </CommandItem>
-          <CommandItem onSelect={() => go("/app/players")}>
-            <UsersIcon /> Players
-            <CommandShortcut>G P</CommandShortcut>
-          </CommandItem>
+          {canReach("/app") && (
+            <CommandItem
+              onSelect={() => go("/app")}
+              keywords={["live", "dashboard", "home"]}
+            >
+              <GaugeIcon /> Live overview
+              <CommandShortcut>G L</CommandShortcut>
+            </CommandItem>
+          )}
+          {canReach("/app/routes") && (
+            <CommandItem
+              onSelect={() => go("/app/routes")}
+              keywords={["configure", "build"]}
+            >
+              <RouteIcon /> Configure route
+              <CommandShortcut>G R</CommandShortcut>
+            </CommandItem>
+          )}
+          {canReach("/app/prize-desk") && (
+            <CommandItem
+              onSelect={() => go("/app/prize-desk")}
+              keywords={["verify", "redeem"]}
+            >
+              <ShieldCheckIcon /> Prize desk
+              <CommandShortcut>G V</CommandShortcut>
+            </CommandItem>
+          )}
+          {canReach("/app/sponsors") && (
+            <CommandItem onSelect={() => go("/app/sponsors")}>
+              <TicketIcon /> Sponsors
+              <CommandShortcut>G S</CommandShortcut>
+            </CommandItem>
+          )}
+          {canReach("/app/players") && (
+            <CommandItem onSelect={() => go("/app/players")}>
+              <UsersIcon /> Players
+              <CommandShortcut>G P</CommandShortcut>
+            </CommandItem>
+          )}
         </CommandGroup>
 
         <CommandSeparator />
