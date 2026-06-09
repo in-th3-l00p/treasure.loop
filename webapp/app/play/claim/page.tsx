@@ -1,22 +1,138 @@
 "use client"
 
 import Link from "next/link"
+import { useCallback, useState } from "react"
 import { ConnectButton } from "@rainbow-me/rainbowkit"
+import { type Hex } from "viem"
 import {
+  useAccount,
+  usePublicClient,
+  useWriteContract,
+} from "wagmi"
+import {
+  AlertTriangleIcon,
   ArrowLeftIcon,
   CheckCircle2Icon,
   GiftIcon,
+  Loader2Icon,
   SparklesIcon,
   WalletIcon,
 } from "lucide-react"
-import { useAccount } from "wagmi"
+
+import { BADGE_ABI } from "@/lib/badge-contract"
+import {
+  useConfirmMint,
+  useProgress,
+  useRequestMintPermit,
+} from "@/lib/play-hooks"
+
+type MintState =
+  | "idle"
+  | "ineligible"
+  | "ready"
+  | "requesting-permit"
+  | "awaiting-signature"
+  | "confirming"
+  | "recording"
+  | "done"
+  | "error"
 
 export default function ClaimPage() {
   const { isConnected, address } = useAccount()
+  const { data: progress, isLoading: loadingProgress, error: progressError } =
+    useProgress()
+  const requestPermit = useRequestMintPermit()
+  const confirmMint = useConfirmMint()
+
+  const {
+    writeContractAsync,
+    data: txHash,
+    reset: resetWrite,
+  } = useWriteContract()
+  const publicClient = usePublicClient()
+
+  const [state, setState] = useState<MintState>("idle")
+  const [error, setError] = useState<string | null>(null)
 
   const shortAddress = address
     ? `${address.slice(0, 6)}…${address.slice(-4)}`
     : null
+
+  // Reset to a state derived from current progress on every render —
+  // no effect, no flicker. Effects below only handle async transitions.
+  const derivedState: MintState = (() => {
+    if (progressError) return "error"
+    if (loadingProgress) return "idle"
+    if (!progress) return "idle"
+    if (progress.badgeMintedAt) return "done"
+    if (!progress.finished) return "ineligible"
+    return "ready"
+  })()
+
+  // Only overwrite the local state when the user isn't mid-mint.
+  const effective: MintState =
+    state === "requesting-permit" ||
+    state === "awaiting-signature" ||
+    state === "confirming" ||
+    state === "recording"
+      ? state
+      : state === "done"
+        ? "done"
+        : derivedState
+
+  const mint = useCallback(async () => {
+    setError(null)
+    setState("requesting-permit")
+    try {
+      const permit = await requestPermit.mutateAsync()
+      setState("awaiting-signature")
+      const hash = await writeContractAsync({
+        address: permit.contract,
+        abi: BADGE_ABI,
+        functionName: "mint",
+        args: [
+          {
+            player: permit.permit.player,
+            chainId: BigInt(permit.permit.chainId),
+            nonce: permit.permit.nonce,
+            deadline: BigInt(permit.permit.deadline),
+          },
+          permit.signature,
+        ],
+        chainId: permit.chainId,
+      })
+      setState("confirming")
+      if (publicClient) {
+        await publicClient.waitForTransactionReceipt({ hash })
+      }
+      setState("recording")
+      await confirmMint.mutateAsync({ txHash: hash as Hex })
+      setState("done")
+    } catch (e) {
+      const code = (e as Error & { code?: string }).code
+      if (code === "contract-not-configured") {
+        setError(
+          "Badge contract isn't deployed in this environment yet. Set NEXT_PUBLIC_BADGE_CONTRACT_ADDRESS and BADGE_SIGNER_PRIVATE_KEY."
+        )
+      } else {
+        setError(
+          e instanceof Error
+            ? e.message
+            : "Mint failed. Check your wallet and try again."
+        )
+      }
+      setState("error")
+      resetWrite()
+    }
+  }, [
+    requestPermit,
+    writeContractAsync,
+    publicClient,
+    confirmMint,
+    resetWrite,
+  ])
+
+  const minted = effective === "done"
 
   return (
     <main className="play-claim relative min-h-screen overflow-hidden">
@@ -32,9 +148,7 @@ export default function ClaimPage() {
           <ArrowLeftIcon className="size-3.5" />
           Progress
         </Link>
-        <span className="font-mono text-[10px] tracking-[0.14em] text-emerald-300/90 uppercase">
-          Loop complete
-        </span>
+        <StatusPill state={effective} />
       </header>
 
       <div className="relative mx-auto grid w-full max-w-md gap-7 px-5 pt-10 pb-12">
@@ -43,39 +157,32 @@ export default function ClaimPage() {
             ETH Cluj 2026
           </p>
           <h1 className="font-heading text-[40px] leading-tight font-medium tracking-tight">
-            You closed the loop.
+            {minted
+              ? "Badge minted."
+              : effective === "ineligible"
+                ? "Keep going."
+                : "You closed the loop."}
           </h1>
           <p className="mx-auto max-w-xs text-sm leading-relaxed text-muted-foreground">
-            Mint your finisher badge and show it at the prize desk to
-            unlock your rewards.
+            {minted
+              ? "Show this badge at the prize desk to claim your reward."
+              : effective === "ineligible"
+                ? `Scan ${(progress?.total ?? 5) - (progress?.scanned.length ?? 0)} more checkpoint(s) before you can mint.`
+                : "Mint your finisher badge and show it at the prize desk to unlock your rewards."}
           </p>
         </div>
 
-        <div className="relative grid place-items-center rounded-3xl border border-primary/40 bg-gradient-to-b from-primary/10 to-fuchsia-400/5 p-8">
-          <div className="absolute inset-0 rounded-3xl bg-[radial-gradient(circle_at_50%_30%,oklch(73%_0.17_296_/_0.2),transparent_60%)]" />
-          <div className="relative grid gap-5 text-center">
-            <div className="relative mx-auto grid size-28 place-items-center">
-              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary via-fuchsia-400 to-primary opacity-70 blur-xl" />
-              <div className="relative grid size-24 place-items-center rounded-full border border-primary/50 bg-gradient-to-br from-primary/80 to-fuchsia-400/80 shadow-[0_20px_40px_-12px_oklch(73%_0.17_296_/_0.6)]">
-                <SparklesIcon className="size-9 text-white" />
-              </div>
-            </div>
-            <div className="grid gap-1">
-              <p className="font-heading text-xl font-medium tracking-tight">
-                Cluj Loop Finisher
-              </p>
-              <p className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
-                Edition of 142 · Base Sepolia
-              </p>
-            </div>
-          </div>
-        </div>
+        <Badge minted={minted} />
 
         <div className="grid gap-2">
           <ConnectButton.Custom>
             {({ openConnectModal, account, chain, mounted }) => {
-              const ready = mounted
-              const connected = ready && !!account && !!chain
+              const connected = mounted && !!account && !!chain
+              if (!mounted) {
+                return (
+                  <div className="h-12 rounded-xl bg-gradient-to-r from-primary to-fuchsia-400 opacity-60" />
+                )
+              }
               if (!connected) {
                 return (
                   <button
@@ -88,22 +195,80 @@ export default function ClaimPage() {
                   </button>
                 )
               }
+              if (effective === "done") {
+                return (
+                  <Link
+                    href="/play/progress"
+                    className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-fuchsia-400 text-[15px] font-medium text-primary-foreground transition-transform hover:-translate-y-px"
+                  >
+                    <CheckCircle2Icon className="size-4" />
+                    Continue
+                  </Link>
+                )
+              }
+              if (effective === "ineligible") {
+                return (
+                  <Link
+                    href="/play/scan"
+                    className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-fuchsia-400 text-[15px] font-medium text-primary-foreground transition-transform hover:-translate-y-px"
+                  >
+                    Keep playing
+                  </Link>
+                )
+              }
+              const busy =
+                effective === "requesting-permit" ||
+                effective === "awaiting-signature" ||
+                effective === "confirming" ||
+                effective === "recording"
               return (
                 <button
                   type="button"
-                  className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-fuchsia-400 text-[15px] font-medium text-primary-foreground transition-transform hover:-translate-y-px"
+                  onClick={mint}
+                  disabled={busy}
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-fuchsia-400 text-[15px] font-medium text-primary-foreground transition-transform hover:-translate-y-px disabled:opacity-70"
                 >
-                  <SparklesIcon className="size-4" />
-                  Mint finisher badge
+                  {busy ? (
+                    <>
+                      <Loader2Icon className="size-4 animate-spin" />
+                      {mintLabel(effective)}
+                    </>
+                  ) : (
+                    <>
+                      <SparklesIcon className="size-4" />
+                      Mint finisher badge
+                    </>
+                  )}
                 </button>
               )
             }}
           </ConnectButton.Custom>
 
-          {isConnected && shortAddress && (
+          {error && (
+            <div className="flex items-start gap-2 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[11px] text-rose-200">
+              <AlertTriangleIcon className="mt-0.5 size-3 shrink-0" />
+              <p>{error}</p>
+            </div>
+          )}
+
+          {isConnected && shortAddress && !minted && (
             <p className="flex items-center justify-center gap-2 text-[11px] text-muted-foreground">
               <CheckCircle2Icon className="size-3 text-emerald-400" />
               Minting to {shortAddress}
+            </p>
+          )}
+
+          {minted && txHash && (
+            <p className="text-center text-[11px] text-muted-foreground">
+              Confirmed on chain ·{" "}
+              <a
+                href={`https://sepolia.basescan.org/tx/${txHash}`}
+                className="text-primary underline-offset-4 hover:underline"
+                target="_blank"
+                rel="noopener"
+              >
+                view tx
+              </a>
             </p>
           )}
         </div>
@@ -126,4 +291,69 @@ export default function ClaimPage() {
       </div>
     </main>
   )
+}
+
+function Badge({ minted }: { minted: boolean }) {
+  return (
+    <div className="relative grid place-items-center rounded-3xl border border-primary/40 bg-gradient-to-b from-primary/10 to-fuchsia-400/5 p-8">
+      <div className="absolute inset-0 rounded-3xl bg-[radial-gradient(circle_at_50%_30%,oklch(73%_0.17_296_/_0.2),transparent_60%)]" />
+      <div className="relative grid gap-5 text-center">
+        <div className="relative mx-auto grid size-28 place-items-center">
+          <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary via-fuchsia-400 to-primary opacity-70 blur-xl" />
+          <div className="relative grid size-24 place-items-center rounded-full border border-primary/50 bg-gradient-to-br from-primary/80 to-fuchsia-400/80 shadow-[0_20px_40px_-12px_oklch(73%_0.17_296_/_0.6)]">
+            {minted ? (
+              <CheckCircle2Icon className="size-9 text-white" />
+            ) : (
+              <SparklesIcon className="size-9 text-white" />
+            )}
+          </div>
+        </div>
+        <div className="grid gap-1">
+          <p className="font-heading text-xl font-medium tracking-tight">
+            Cluj Loop Finisher
+          </p>
+          <p className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
+            Edition of 142 · Base Sepolia
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function StatusPill({ state }: { state: MintState }) {
+  if (state === "done") {
+    return (
+      <span className="font-mono text-[10px] tracking-[0.14em] text-emerald-300/90 uppercase">
+        Minted
+      </span>
+    )
+  }
+  if (state === "ineligible") {
+    return (
+      <span className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
+        Loop incomplete
+      </span>
+    )
+  }
+  return (
+    <span className="font-mono text-[10px] tracking-[0.14em] text-primary uppercase">
+      Loop complete
+    </span>
+  )
+}
+
+function mintLabel(state: MintState): string {
+  switch (state) {
+    case "requesting-permit":
+      return "Issuing permit…"
+    case "awaiting-signature":
+      return "Confirm in wallet…"
+    case "confirming":
+      return "Waiting for chain…"
+    case "recording":
+      return "Finalizing…"
+    default:
+      return ""
+  }
 }

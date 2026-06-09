@@ -8,6 +8,7 @@ const isPublicRoute = createRouteMatcher([
   "/login(.*)",
   "/sign-up(.*)",
   "/play(.*)", // attendee surface — wallet auth, not Clerk
+  "/api/play/(.*)", // attendee API — guarded by SIWE session, not Clerk
   "/api/health",
 ])
 

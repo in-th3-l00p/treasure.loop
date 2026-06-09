@@ -1,13 +1,27 @@
 "use client"
 
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { useCallback, useState } from "react"
 import { ConnectButton } from "@rainbow-me/rainbowkit"
+import { SiweMessage } from "siwe"
+import { useAccount, useSignMessage } from "wagmi"
 import {
   ArrowRightIcon,
   CheckCircle2Icon,
+  Loader2Icon,
   MapPinIcon,
   TrophyIcon,
 } from "lucide-react"
+
+import { event } from "@/lib/mock-data"
+import {
+  useLogout,
+  useRequestNonce,
+  useSession,
+  useVerifySiwe,
+} from "@/lib/play-hooks"
+import { cn } from "@/lib/utils"
 
 const benefits = [
   {
@@ -27,7 +41,74 @@ const benefits = [
   },
 ]
 
+type SignState = "idle" | "preparing" | "signing" | "verifying"
+
 export default function PlayLanding() {
+  const router = useRouter()
+  const { address, chainId, isConnected } = useAccount()
+  const { signMessageAsync } = useSignMessage()
+  const session = useSession()
+  const requestNonce = useRequestNonce()
+  const verifySiwe = useVerifySiwe()
+  const logout = useLogout()
+
+  const [signState, setSignState] = useState<SignState>("idle")
+  const [error, setError] = useState<string | null>(null)
+
+  // Detect wallet ↔ session mismatch in render (no useEffect).
+  const sessionAddress = session.data?.address ?? null
+  const sessionMatches =
+    !!sessionAddress &&
+    !!address &&
+    sessionAddress.toLowerCase() === address.toLowerCase()
+
+  // If the wallet disconnected, or we connected with a different
+  // wallet than the session, sign out. Event-driven via mutation, not
+  // an effect.
+  if (
+    !logout.isPending &&
+    sessionAddress &&
+    (!isConnected || (address && !sessionMatches))
+  ) {
+    logout.mutate()
+  }
+
+  const runSiwe = useCallback(async () => {
+    if (!address || !chainId) return
+    setError(null)
+    setSignState("preparing")
+    try {
+      const { nonce } = await requestNonce.mutateAsync()
+      const message = new SiweMessage({
+        domain:
+          typeof window !== "undefined"
+            ? window.location.host
+            : "treasure.loop",
+        address,
+        statement:
+          "Sign in to TreasureLoop. Your signature proves wallet ownership and does not authorize any transaction.",
+        uri:
+          typeof window !== "undefined"
+            ? window.location.origin
+            : "https://treasure.loop",
+        version: "1",
+        chainId,
+        nonce,
+        issuedAt: new Date().toISOString(),
+      })
+      const prepared = message.prepareMessage()
+      setSignState("signing")
+      const signature = await signMessageAsync({ message: prepared })
+      setSignState("verifying")
+      await verifySiwe.mutateAsync({ message: prepared, signature })
+      router.push("/play/scan")
+    } catch (e) {
+      const msg =
+        e instanceof Error ? e.message : "Sign-in failed. Try again."
+      setError(msg)
+      setSignState("idle")
+    }
+  }, [address, chainId, requestNonce, signMessageAsync, verifySiwe, router])
 
   return (
     <main className="play-landing relative min-h-screen overflow-hidden">
@@ -46,7 +127,7 @@ export default function PlayLanding() {
           </span>
         </Link>
         <span className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
-          Player
+          {event.name.split(":")[0]}
         </span>
       </header>
 
@@ -54,7 +135,7 @@ export default function PlayLanding() {
         <div className="grid gap-7">
           <div className="grid gap-3">
             <p className="font-mono text-[11px] tracking-[0.18em] text-primary uppercase">
-              ETH Cluj 2026
+              {event.name.split(":")[0]}
             </p>
             <h1 className="font-heading text-[44px] leading-[0.95] font-medium tracking-tight">
               Hunt the floor,
@@ -112,25 +193,57 @@ export default function PlayLanding() {
                   </button>
                 )
               }
+              if (sessionMatches) {
+                return (
+                  <Link
+                    href="/play/scan"
+                    className="group relative inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary via-primary to-fuchsia-400 text-[15px] font-medium text-primary-foreground shadow-[0_12px_32px_-8px_oklch(56%_0.18_286_/_0.5)] transition-transform hover:-translate-y-px"
+                  >
+                    <CheckCircle2Icon className="size-4" />
+                    Start the hunt
+                    <ArrowRightIcon className="size-4 transition-transform group-hover:translate-x-0.5" />
+                  </Link>
+                )
+              }
               return (
-                <Link
-                  href="/play/scan"
-                  className="group relative inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary via-primary to-fuchsia-400 text-[15px] font-medium text-primary-foreground shadow-[0_12px_32px_-8px_oklch(56%_0.18_286_/_0.5)] transition-transform hover:-translate-y-px"
+                <button
+                  type="button"
+                  onClick={runSiwe}
+                  disabled={signState !== "idle"}
+                  className={cn(
+                    "group relative inline-flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-primary via-primary to-fuchsia-400 text-[15px] font-medium text-primary-foreground shadow-[0_12px_32px_-8px_oklch(56%_0.18_286_/_0.5)] transition-transform hover:-translate-y-px",
+                    signState !== "idle" && "opacity-90"
+                  )}
                 >
-                  <CheckCircle2Icon className="size-4" />
-                  Start the hunt
-                  <ArrowRightIcon className="size-4 transition-transform group-hover:translate-x-0.5" />
-                </Link>
+                  {signState === "idle" && (
+                    <>
+                      Sign in with your wallet
+                      <ArrowRightIcon className="size-4 transition-transform group-hover:translate-x-0.5" />
+                    </>
+                  )}
+                  {signState !== "idle" && (
+                    <>
+                      <Loader2Icon className="size-4 animate-spin" />
+                      {labelFor(signState)}
+                    </>
+                  )}
+                </button>
               )
             }}
           </ConnectButton.Custom>
+
+          {error && (
+            <p className="text-center text-[11px] text-rose-300/90">
+              {error}
+            </p>
+          )}
 
           <p className="text-center text-[11px] text-muted-foreground">
             We never charge gas to play. Mint happens on completion.
           </p>
 
           <div className="flex items-center justify-center gap-4 pt-3 font-mono text-[10px] tracking-[0.14em] text-muted-foreground/60 uppercase">
-            <span>Base Sepolia</span>
+            <span>{event.walletNetwork}</span>
             <span className="size-0.5 rounded-full bg-muted-foreground/40" />
             <span>5 checkpoints</span>
             <span className="size-0.5 rounded-full bg-muted-foreground/40" />
@@ -140,4 +253,17 @@ export default function PlayLanding() {
       </div>
     </main>
   )
+}
+
+function labelFor(state: SignState): string {
+  switch (state) {
+    case "preparing":
+      return "Preparing message…"
+    case "signing":
+      return "Check your wallet…"
+    case "verifying":
+      return "Verifying signature…"
+    default:
+      return ""
+  }
 }
