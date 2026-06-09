@@ -1288,6 +1288,69 @@ p {
   }
 }
 
+/* ───────────────────────── product shell ─────────────────────────
+   Scoped overrides for the authenticated /app routes.
+   Calmer surfaces, neutral tokens, sans-only typography.
+   Landing-page tokens above remain untouched. */
+.product-shell {
+  --background: oklch(11% 0.005 286);
+  --foreground: oklch(96% 0.004 286);
+  --card: oklch(15% 0.006 286);
+  --card-foreground: oklch(96% 0.004 286);
+  --popover: oklch(15% 0.006 286);
+  --popover-foreground: oklch(96% 0.004 286);
+  --primary: oklch(73% 0.17 296);
+  --primary-foreground: oklch(98% 0.005 286);
+  --secondary: oklch(20% 0.006 286);
+  --secondary-foreground: oklch(94% 0.004 286);
+  --muted: oklch(20% 0.006 286);
+  --muted-foreground: oklch(70% 0.006 286);
+  --accent: oklch(22% 0.012 296);
+  --accent-foreground: oklch(96% 0.004 286);
+  --destructive: oklch(64% 0.2 25);
+  --border: oklch(96% 0.004 286 / 0.08);
+  --input: oklch(96% 0.004 286 / 0.1);
+  --ring: oklch(73% 0.17 296 / 0.55);
+  --sidebar: oklch(10% 0.005 286);
+  --sidebar-foreground: oklch(94% 0.004 286);
+  --sidebar-primary: oklch(73% 0.17 296);
+  --sidebar-primary-foreground: oklch(98% 0.005 286);
+  --sidebar-accent: oklch(18% 0.006 286);
+  --sidebar-accent-foreground: oklch(96% 0.004 286);
+  --sidebar-border: oklch(96% 0.004 286 / 0.06);
+  --sidebar-ring: oklch(73% 0.17 296 / 0.55);
+  --radius: 0.625rem;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* Disable landing's heavy purple radials and grid texture inside product. */
+.product-shell::before {
+  display: none;
+}
+
+/* Force sans typography on product chrome — no editorial serif in tables, cards, nav, controls. */
+.product-shell .font-heading,
+.product-shell [data-slot="card-title"],
+.product-shell [data-slot="dialog-title"],
+.product-shell h1,
+.product-shell h2,
+.product-shell h3,
+.product-shell h4 {
+  font-family: var(--font-body), Arial, Helvetica, sans-serif;
+  letter-spacing: -0.005em;
+}
+
+/* Status pills shared across the product surfaces. */
+.product-shell .status-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 0 0 3px color-mix(in oklab, currentColor 18%, transparent);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

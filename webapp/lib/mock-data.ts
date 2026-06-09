@@ -99,3 +99,50 @@ export const players = [
   { name: "Radu C.", wallet: "0x09...21fc", progress: "3/5", status: "Needs pair clue" },
   { name: "Mihai L.", wallet: "0x82...c914", progress: "2/5", status: "Active route" },
 ]
+
+export type CheckpointHealth = "Healthy" | "Busy" | "Needs staff" | "Offline"
+
+export const hourlyTraffic = [
+  { hour: "10:00", scans: 42, completions: 4 },
+  { hour: "11:00", scans: 88, completions: 12 },
+  { hour: "12:00", scans: 124, completions: 28 },
+  { hour: "13:00", scans: 96, completions: 22 },
+  { hour: "14:00", scans: 156, completions: 38 },
+  { hour: "15:00", scans: 184, completions: 46 },
+  { hour: "16:00", scans: 142, completions: 34 },
+  { hour: "17:00", scans: 96, completions: 18 },
+]
+
+export const verificationQueue = [
+  {
+    badge: "TL-CLUJ-0118",
+    player: "Catalin T.",
+    wallet: "0x74...92b1",
+    completedAt: "2 min ago",
+    eligible: ["On-chain finisher badge", "Ledger Nano raffle", "Conference merch pack"],
+    flags: [],
+  },
+  {
+    badge: "TL-CLUJ-0117",
+    player: "Ana D.",
+    wallet: "0x31...ab70",
+    completedAt: "6 min ago",
+    eligible: ["On-chain finisher badge", "Conference merch pack"],
+    flags: [],
+  },
+  {
+    badge: "TL-CLUJ-0116",
+    player: "Iulia M.",
+    wallet: "0x4a...77fe",
+    completedAt: "11 min ago",
+    eligible: ["On-chain finisher badge"],
+    flags: ["Same wallet claimed merch yesterday"],
+  },
+]
+
+export const recentRedemptions = [
+  { badge: "TL-CLUJ-0115", reward: "Conference merch pack", staff: "Vlad", at: "14:38" },
+  { badge: "TL-CLUJ-0114", reward: "Ledger Nano raffle", staff: "Vlad", at: "14:32" },
+  { badge: "TL-CLUJ-0113", reward: "Conference merch pack", staff: "Mara", at: "14:21" },
+  { badge: "TL-CLUJ-0112", reward: "Speaker dinner pass", staff: "Vlad", at: "14:09" },
+]

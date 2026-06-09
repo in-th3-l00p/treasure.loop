@@ -1,55 +1,24 @@
 import Link from "next/link"
 import {
-  ActivityIcon,
-  BadgeCheckIcon,
-  BellIcon,
-  CalendarDaysIcon,
-  ChevronDownIcon,
-  CircleDollarSignIcon,
-  ClipboardListIcon,
-  GiftIcon,
-  MapIcon,
-  MoreHorizontalIcon,
-  QrCodeIcon,
+  ArrowUpRightIcon,
+  CircleAlertIcon,
+  CircleCheckIcon,
+  CircleDotIcon,
+  ClockIcon,
   RadioTowerIcon,
-  RouteIcon,
-  SettingsIcon,
-  ShieldCheckIcon,
-  SparklesIcon,
-  TicketCheckIcon,
-  UsersIcon,
+  TrendingUpIcon,
 } from "lucide-react"
 
-import {
-  Avatar,
-  AvatarBadge,
-  AvatarFallback,
-  AvatarGroup,
-  AvatarGroupCount,
-} from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
-  Progress,
-  ProgressLabel,
-} from "@/components/ui/progress"
+import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
 import {
   Table,
@@ -60,500 +29,363 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs"
-import {
+  activity,
   checkpoints,
   event,
-  activity,
-  players,
-  rewards,
+  hourlyTraffic,
   sponsors,
 } from "@/lib/mock-data"
+import { cn } from "@/lib/utils"
 
-const navigation = [
-  { name: "Overview", icon: ActivityIcon, active: true },
-  { name: "Route graph", icon: RouteIcon },
-  { name: "Checkpoints", icon: QrCodeIcon },
-  { name: "Players", icon: UsersIcon },
-  { name: "Rewards", icon: GiftIcon },
-  { name: "Settings", icon: SettingsIcon },
-]
-
-const stats = [
-  {
-    label: "Active players",
-    value: event.activePlayers.toLocaleString(),
-    detail: `${event.attendeeCount.toLocaleString()} attendees imported`,
-    icon: UsersIcon,
-  },
-  {
-    label: "Sponsor visits",
-    value: event.sponsorVisits.toLocaleString(),
-    detail: "Qualified booth interactions",
-    icon: RadioTowerIcon,
-  },
-  {
-    label: "Completions",
-    value: event.completions.toLocaleString(),
-    detail: `${event.badgeMints} badges minted`,
-    icon: BadgeCheckIcon,
-  },
-  {
-    label: "Prize claims",
-    value: "74",
-    detail: "Physical desk verifications",
-    icon: TicketCheckIcon,
-  },
-]
-
-function StatusBadge({ status }: { status: string }) {
-  if (status === "Healthy" || status === "Open" || status === "Minting") {
-    return <Badge>{status}</Badge>
-  }
-
-  if (status === "Busy" || status === "Limited") {
-    return <Badge variant="secondary">{status}</Badge>
-  }
-
-  return <Badge variant="destructive">{status}</Badge>
+const statusStyles: Record<string, string> = {
+  Healthy: "text-emerald-400",
+  Busy: "text-amber-400",
+  "Needs staff": "text-rose-400",
+  Offline: "text-muted-foreground",
 }
 
-export default function AppPage() {
+export default function OverviewPage() {
+  const maxScans = Math.max(...hourlyTraffic.map((h) => h.scans))
+  const needsAttention = checkpoints.filter((c) => c.status !== "Healthy")
+
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <div className="grid min-h-screen lg:grid-cols-[280px_1fr]">
-        <aside className="hidden border-r border-border bg-sidebar/80 p-5 lg:flex lg:flex-col">
-          <Link href="/" className="flex items-center gap-3 font-semibold">
-            <span className="grid size-9 place-items-center rounded-xl border border-border bg-primary/20 text-primary">
-              <MapIcon />
-            </span>
-            TreasureLoop
-          </Link>
+    <div className="px-5 pt-6 pb-14 lg:px-7">
+      <header className="flex flex-wrap items-end justify-between gap-4 pb-6">
+        <div>
+          <p className="font-mono text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
+            Today · {event.dates.split("-")[0].trim()} July
+          </p>
+          <h1 className="mt-1 text-[22px] font-semibold tracking-tight">
+            Event overview
+          </h1>
+          <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+            What is happening on the floor right now, and what needs your attention before the next wave.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" className="h-8">
+            Export report
+          </Button>
+          <Button className="h-8">
+            Open route graph
+            <ArrowUpRightIcon className="ml-1 size-3.5" />
+          </Button>
+        </div>
+      </header>
 
-          <div className="mt-8 rounded-2xl border border-border bg-card p-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="font-mono text-[0.68rem] uppercase tracking-[0.14em] text-primary">
-                  Current event
-                </p>
-                <p className="mt-1 text-sm font-medium leading-5">{event.name}</p>
-              </div>
-              <ChevronDownIcon className="mt-1 text-muted-foreground" />
-            </div>
-            <Separator className="my-3" />
-            <div className="flex flex-col gap-2 text-xs text-muted-foreground">
-              <span className="flex items-center gap-2">
-                <CalendarDaysIcon /> {event.dates}
-              </span>
-              <span className="flex items-center gap-2">
-                <ShieldCheckIcon /> {event.walletNetwork}
-              </span>
-            </div>
-          </div>
-
-          <nav className="mt-6 flex flex-col gap-1">
-            {navigation.map((item) => (
-              <a
-                key={item.name}
-                href="#"
-                className={
-                  item.active
-                    ? "flex items-center gap-2 rounded-xl bg-primary px-3 py-2.5 text-sm font-medium text-primary-foreground"
-                    : "flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                }
-              >
-                <item.icon />
-                {item.name}
-              </a>
-            ))}
-          </nav>
-
-          <div className="mt-auto rounded-2xl border border-border bg-card p-4">
-            <p className="text-sm font-medium">Prize desk mode</p>
-            <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              Staff can verify badge ownership and mark physical rewards as
-              claimed.
-            </p>
-            <Button className="mt-4 w-full" size="sm">
-              Open desk view
-            </Button>
-          </div>
-        </aside>
-
-        <section className="min-w-0">
-          <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-border bg-background/86 px-4 backdrop-blur-xl md:px-6">
-            <div className="min-w-0">
-              <p className="font-mono text-[0.68rem] uppercase tracking-[0.14em] text-primary">
-                {event.status}
-              </p>
-              <h1 className="truncate font-heading text-2xl font-medium tracking-normal md:text-3xl">
-                {event.name}
-              </h1>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="icon" aria-label="Notifications">
-                <BellIcon />
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
-                  InTheLoop Ops
-                  <MoreHorizontalIcon data-icon="inline-end" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuLabel>Workspace</DropdownMenuLabel>
-                  <DropdownMenuGroup>
-                    <DropdownMenuItem>Event settings</DropdownMenuItem>
-                    <DropdownMenuItem>Billing preview</DropdownMenuItem>
-                    <DropdownMenuItem>Invite staff</DropdownMenuItem>
-                  </DropdownMenuGroup>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem variant="destructive">Sign out</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </header>
-
-          <div className="flex flex-col gap-6 p-4 md:p-6 xl:p-8">
-            <section className="grid gap-4 xl:grid-cols-[1.18fr_0.82fr]">
-              <Card className="border-border/80 bg-card/86">
-                <CardHeader>
-                  <div>
-                    <CardTitle className="text-3xl">Event command center</CardTitle>
-                    <CardDescription>
-                      A live-feeling snapshot of route progress, sponsor traffic,
-                      and reward fulfillment for {event.venue}.
-                    </CardDescription>
-                  </div>
-                  <CardAction>
-                    <Badge variant="secondary">Mock data</Badge>
-                  </CardAction>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-3 md:grid-cols-4">
-                    {stats.map((stat) => (
-                      <div
-                        key={stat.label}
-                        className="rounded-2xl border border-border bg-secondary/35 p-3"
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="grid size-9 place-items-center rounded-xl bg-primary/15 text-primary">
-                            <stat.icon />
-                          </span>
-                          <Badge variant="outline">Live</Badge>
-                        </div>
-                        <p className="mt-5 text-3xl font-semibold tracking-tight">
-                          {stat.value}
-                        </p>
-                        <p className="mt-1 text-sm font-medium">{stat.label}</p>
-                        <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                          {stat.detail}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-border/80 bg-card/86">
-                <CardHeader>
-                  <CardTitle>Loop readiness</CardTitle>
-                  <CardDescription>
-                    Operational confidence before opening doors.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-col gap-5">
-                  <Progress value={event.routeCompletion}>
-                    <ProgressLabel>Route completion</ProgressLabel>
-                    <span className="ml-auto text-sm tabular-nums text-muted-foreground">
-                      {event.routeCompletion}%
-                    </span>
-                  </Progress>
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="rounded-xl border border-border p-3">
-                      <p className="text-2xl font-semibold">5</p>
-                      <p className="text-xs text-muted-foreground">Checkpoints</p>
-                    </div>
-                    <div className="rounded-xl border border-border p-3">
-                      <p className="text-2xl font-semibold">4</p>
-                      <p className="text-xs text-muted-foreground">Sponsors</p>
-                    </div>
-                    <div className="rounded-xl border border-border p-3">
-                      <p className="text-2xl font-semibold">1</p>
-                      <p className="text-xs text-muted-foreground">Staff gap</p>
-                    </div>
-                  </div>
-                  <div className="rounded-2xl bg-primary/10 p-4">
-                    <p className="flex items-center gap-2 text-sm font-medium text-primary">
-                      <SparklesIcon /> Recommended next action
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                      Assign one more volunteer to Hardware Vault before the
-                      paired-fragment clue goes live.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            </section>
-
-            <Tabs defaultValue="route" className="gap-4">
-              <TabsList>
-                <TabsTrigger value="route">Route map</TabsTrigger>
-                <TabsTrigger value="checkpoints">Checkpoints</TabsTrigger>
-                <TabsTrigger value="rewards">Rewards</TabsTrigger>
-                <TabsTrigger value="players">Players</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="route">
-                <section className="grid gap-4 xl:grid-cols-[1fr_360px]">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Configured route graph</CardTitle>
-                      <CardDescription>
-                        How attendees move through the mocked event.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid gap-3 md:grid-cols-5">
-                        {checkpoints.map((checkpoint, index) => (
-                          <div
-                            key={checkpoint.id}
-                            className="relative rounded-2xl border border-border bg-secondary/35 p-4"
-                          >
-                            {index < checkpoints.length - 1 && (
-                              <span className="absolute left-[calc(100%_-_0.5rem)] top-1/2 hidden h-px w-5 bg-border md:block" />
-                            )}
-                            <p className="font-mono text-[0.68rem] uppercase tracking-[0.14em] text-primary">
-                              {checkpoint.id}
-                            </p>
-                            <h3 className="mt-8 font-heading text-2xl font-medium leading-none">
-                              {checkpoint.name}
-                            </h3>
-                            <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                              {checkpoint.area}
-                            </p>
-                            <div className="mt-5">
-                              <StatusBadge status={checkpoint.status} />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Live activity</CardTitle>
-                      <CardDescription>
-                        Event signals an operator would monitor.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex flex-col gap-3">
-                        {activity.map((item) => (
-                          <div key={item} className="flex gap-3">
-                            <span className="mt-1 size-2 rounded-full bg-primary" />
-                            <p className="text-sm leading-6 text-muted-foreground">
-                              {item}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </section>
-              </TabsContent>
-
-              <TabsContent value="checkpoints">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Checkpoint operations</CardTitle>
-                    <CardDescription>
-                      Staff assignment, scan volume, sponsor ownership, and clue
-                      health.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Checkpoint</TableHead>
-                          <TableHead>Sponsor</TableHead>
-                          <TableHead>Area</TableHead>
-                          <TableHead>Scans</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Staff</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {checkpoints.map((checkpoint) => (
-                          <TableRow key={checkpoint.id}>
-                            <TableCell>
-                              <div className="font-medium">{checkpoint.name}</div>
-                              <div className="text-xs text-muted-foreground">
-                                {checkpoint.clue}
-                              </div>
-                            </TableCell>
-                            <TableCell>{checkpoint.sponsor}</TableCell>
-                            <TableCell>{checkpoint.area}</TableCell>
-                            <TableCell>{checkpoint.scans}</TableCell>
-                            <TableCell>
-                              <StatusBadge status={checkpoint.status} />
-                            </TableCell>
-                            <TableCell>{checkpoint.staff}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="rewards">
-                <section className="grid gap-4 xl:grid-cols-[0.85fr_1.15fr]">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Reward tiers</CardTitle>
-                      <CardDescription>
-                        What completion unlocks at the physical prize layer.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex flex-col gap-3">
-                      {rewards.map((reward) => (
-                        <div
-                          key={reward.name}
-                          className="flex items-center justify-between gap-4 rounded-2xl border border-border p-3"
-                        >
-                          <div>
-                            <p className="font-medium">{reward.name}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {reward.claimed} claimed, {reward.stock}
-                            </p>
-                          </div>
-                          <StatusBadge status={reward.status} />
-                        </div>
-                      ))}
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Sponsor station value</CardTitle>
-                      <CardDescription>
-                        The sponsor-facing proof that foot traffic is happening.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="grid gap-3 md:grid-cols-2">
-                      {sponsors.map((sponsor) => (
-                        <div
-                          key={sponsor.name}
-                          className="rounded-2xl border border-border bg-secondary/30 p-4"
-                        >
-                          <div className="flex items-center justify-between gap-3">
-                            <p className="font-heading text-2xl font-medium">
-                              {sponsor.name}
-                            </p>
-                            <Badge variant="outline">{sponsor.tier}</Badge>
-                          </div>
-                          <div className="mt-5 grid grid-cols-2 gap-3">
-                            <div>
-                              <p className="text-2xl font-semibold">
-                                {sponsor.visits}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                Booth visits
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-2xl font-semibold">
-                                {sponsor.conversations}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                Conversations
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </CardContent>
-                  </Card>
-                </section>
-              </TabsContent>
-
-              <TabsContent value="players">
-                <section className="grid gap-4 xl:grid-cols-[1fr_340px]">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Player progress</CardTitle>
-                      <CardDescription>
-                        Mocked attendees moving through the loop.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Player</TableHead>
-                            <TableHead>Wallet</TableHead>
-                            <TableHead>Progress</TableHead>
-                            <TableHead>Status</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {players.map((player) => (
-                            <TableRow key={player.wallet}>
-                              <TableCell className="font-medium">{player.name}</TableCell>
-                              <TableCell>{player.wallet}</TableCell>
-                              <TableCell>{player.progress}</TableCell>
-                              <TableCell>
-                                <Badge variant="secondary">{player.status}</Badge>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Prize desk queue</CardTitle>
-                      <CardDescription>
-                        People ready for badge or physical verification.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <AvatarGroup>
-                        {["CT", "AD", "RC", "ML"].map((initials, index) => (
-                          <Avatar key={initials} size="lg">
-                            <AvatarFallback>{initials}</AvatarFallback>
-                            {index < 2 && <AvatarBadge />}
-                          </Avatar>
-                        ))}
-                        <AvatarGroupCount>+12</AvatarGroupCount>
-                      </AvatarGroup>
-                      <Separator className="my-5" />
-                      <div className="flex flex-col gap-3">
-                        <Button>
-                          <ClipboardListIcon data-icon="inline-start" />
-                          Verify next claim
-                        </Button>
-                        <Button variant="outline">
-                          <CircleDollarSignIcon data-icon="inline-start" />
-                          Export sponsor report
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </section>
-              </TabsContent>
-            </Tabs>
-          </div>
-        </section>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Kpi
+          label="Active players"
+          value={event.activePlayers.toLocaleString()}
+          delta="+38 in last hour"
+          trend="up"
+        />
+        <Kpi
+          label="Route completion"
+          value={`${event.routeCompletion}%`}
+          delta="of started loops"
+          progress={event.routeCompletion}
+        />
+        <Kpi
+          label="Sponsor visits"
+          value={event.sponsorVisits.toLocaleString()}
+          delta="+312 today"
+          trend="up"
+        />
+        <Kpi
+          label="Badge mints"
+          value={event.badgeMints.toLocaleString()}
+          delta={`Queue: ${event.completions - event.badgeMints}`}
+          trend="neutral"
+        />
       </div>
-    </main>
+
+      <div className="mt-6 grid gap-4 xl:grid-cols-[1.6fr_1fr]">
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <CardTitle className="text-sm font-medium">Hourly traffic</CardTitle>
+                <CardDescription className="mt-0.5 text-xs">
+                  Scans across all checkpoints versus completions
+                </CardDescription>
+              </div>
+              <Badge
+                variant="outline"
+                className="h-6 rounded-full border-border bg-secondary/40 font-mono text-[10px] tracking-[0.1em] text-muted-foreground uppercase"
+              >
+                <TrendingUpIcon className="mr-1 size-3 text-emerald-400" />
+                +18% vs yesterday
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex h-44 items-end gap-2.5">
+              {hourlyTraffic.map((h) => (
+                <div key={h.hour} className="flex flex-1 flex-col items-center gap-1.5">
+                  <div className="flex w-full flex-1 flex-col justify-end gap-0.5">
+                    <div
+                      className="w-full rounded-t-sm bg-primary/70"
+                      style={{ height: `${(h.completions / maxScans) * 100}%` }}
+                      title={`${h.completions} completions`}
+                    />
+                    <div
+                      className="w-full rounded-sm bg-primary/15"
+                      style={{
+                        height: `${((h.scans - h.completions) / maxScans) * 100}%`,
+                      }}
+                      title={`${h.scans} scans`}
+                    />
+                  </div>
+                  <span className="font-mono text-[10px] text-muted-foreground">
+                    {h.hour}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 flex items-center gap-4 text-[11px] text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <span className="size-2.5 rounded-sm bg-primary/70" /> Completions
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="size-2.5 rounded-sm bg-primary/15" /> Scans
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium">Needs attention</CardTitle>
+            <CardDescription className="text-xs">
+              Checkpoints not in Healthy state
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-2">
+            {needsAttention.length === 0 ? (
+              <div className="flex items-center gap-2 rounded-md border border-border bg-secondary/30 px-3 py-3 text-sm text-muted-foreground">
+                <CircleCheckIcon className="size-4 text-emerald-400" /> All
+                checkpoints healthy
+              </div>
+            ) : (
+              needsAttention.map((cp) => (
+                <div
+                  key={cp.id}
+                  className="flex items-start justify-between gap-3 rounded-md border border-border bg-secondary/30 px-3 py-2.5"
+                >
+                  <div className="flex min-w-0 flex-1 items-start gap-2.5">
+                    <CircleAlertIcon
+                      className={cn("mt-0.5 size-4 shrink-0", statusStyles[cp.status])}
+                    />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{cp.name}</p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {cp.status} · {cp.area}
+                      </p>
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="sm" className="h-7 px-2 text-xs">
+                    Assign
+                  </Button>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="mt-4 grid gap-4 xl:grid-cols-[1.6fr_1fr]">
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="text-sm font-medium">Checkpoint health</CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs"
+                render={<Link href="/app/checkpoints" />}
+              >
+                View all
+                <ArrowUpRightIcon className="ml-0.5 size-3" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="pb-2">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-border/60">
+                  <TableHead className="h-8 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+                    Checkpoint
+                  </TableHead>
+                  <TableHead className="h-8 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+                    Sponsor
+                  </TableHead>
+                  <TableHead className="h-8 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+                    Scans
+                  </TableHead>
+                  <TableHead className="h-8 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+                    Completion
+                  </TableHead>
+                  <TableHead className="h-8 text-right text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+                    Status
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {checkpoints.map((cp) => (
+                  <TableRow key={cp.id} className="border-border/60">
+                    <TableCell>
+                      <div className="flex items-center gap-2.5">
+                        <span className="grid size-7 place-items-center rounded-md border border-border bg-secondary/40 font-mono text-[10px] text-muted-foreground">
+                          {cp.id.replace("CP-", "")}
+                        </span>
+                        <div>
+                          <p className="text-sm font-medium">{cp.name}</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            {cp.area}
+                          </p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {cp.sponsor}
+                    </TableCell>
+                    <TableCell className="font-mono text-sm tabular-nums">
+                      {cp.scans.toLocaleString()}
+                    </TableCell>
+                    <TableCell className="w-[140px]">
+                      <div className="flex items-center gap-2">
+                        <Progress value={cp.completion} className="h-1.5 flex-1" />
+                        <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
+                          {cp.completion}%
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1.5 text-xs",
+                          statusStyles[cp.status]
+                        )}
+                      >
+                        <span className="status-dot" /> {cp.status}
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
+        <div className="grid gap-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Sponsor traffic</CardTitle>
+              <CardDescription className="text-xs">
+                Visits vs conversations today
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-3 pb-4">
+              {sponsors.map((s) => {
+                const rate = Math.round((s.conversations / s.visits) * 100)
+                return (
+                  <div key={s.name} className="grid gap-1.5">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-sm font-medium">{s.name}</span>
+                      <span className="font-mono text-[11px] text-muted-foreground tabular-nums">
+                        {s.conversations} / {s.visits}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Progress value={rate} className="h-1 flex-1" />
+                      <span className="w-9 text-right font-mono text-[11px] tabular-nums text-muted-foreground">
+                        {rate}%
+                      </span>
+                    </div>
+                  </div>
+                )
+              })}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium">Live activity</CardTitle>
+                <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <RadioTowerIcon className="size-3 text-emerald-400" />
+                  Streaming
+                </span>
+              </div>
+            </CardHeader>
+            <CardContent className="pb-4">
+              <ul className="grid gap-2.5">
+                {activity.map((line, i) => (
+                  <li key={line} className="flex items-start gap-2.5">
+                    <CircleDotIcon
+                      className={cn(
+                        "mt-0.5 size-3 shrink-0",
+                        i === 0 ? "text-primary" : "text-muted-foreground/40"
+                      )}
+                    />
+                    <div className="flex-1">
+                      <p className="text-[13px] leading-snug">{line}</p>
+                      <p className="font-mono text-[10px] text-muted-foreground">
+                        {`${15 - i * 2} min ago`}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function Kpi({
+  label,
+  value,
+  delta,
+  trend,
+  progress,
+}: {
+  label: string
+  value: string
+  delta: string
+  trend?: "up" | "down" | "neutral"
+  progress?: number
+}) {
+  const trendIcon =
+    trend === "up" ? (
+      <TrendingUpIcon className="size-3 text-emerald-400" />
+    ) : trend === "down" ? (
+      <TrendingUpIcon className="size-3 rotate-180 text-rose-400" />
+    ) : (
+      <ClockIcon className="size-3 text-muted-foreground" />
+    )
+
+  return (
+    <Card>
+      <CardContent className="grid gap-1.5 py-4">
+        <p className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
+          {label}
+        </p>
+        <p className="text-[26px] font-semibold tabular-nums tracking-tight">
+          {value}
+        </p>
+        {progress !== undefined ? (
+          <Progress value={progress} className="h-1" />
+        ) : (
+          <Separator className="bg-border/60" />
+        )}
+        <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          {trendIcon} {delta}
+        </p>
+      </CardContent>
+    </Card>
   )
 }
