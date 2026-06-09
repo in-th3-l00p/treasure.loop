@@ -3,6 +3,7 @@ import { SiweMessage } from "siwe"
 import { getAddress } from "viem"
 
 import { getPlaySession } from "@/lib/play-session"
+import { rateLimit, rateLimitKeyFromRequest } from "@/lib/rate-limit"
 
 interface VerifyBody {
   message: string
@@ -23,6 +24,25 @@ interface VerifyBody {
  *      session, return 200. On failure: 401 with a reason.
  */
 export async function POST(req: Request) {
+  // Rate limit: 10 verify attempts per IP per minute is way above any
+  // legitimate usage, but still cuts brute-force throughput hard.
+  const limit = rateLimit(rateLimitKeyFromRequest(req), {
+    name: "siwe-verify",
+    limit: 10,
+    windowMs: 60_000,
+  })
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: "rate-limited", retryAfterMs: limit.retryAfterMs },
+      {
+        status: 429,
+        headers: {
+          "retry-after": Math.ceil(limit.retryAfterMs / 1000).toString(),
+        },
+      }
+    )
+  }
+
   const session = await getPlaySession()
 
   let body: VerifyBody

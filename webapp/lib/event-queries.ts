@@ -260,3 +260,78 @@ export async function listRewards(eventId: string) {
     .where(eq(rewards.eventId, eventId))
     .orderBy(asc(rewards.name))
 }
+
+/**
+ * Pull the most recent audit_log entries for the event and turn them
+ * into one-line activity strings. The shape matches the static mock
+ * the overview page used to hard-code, so the UI doesn't have to
+ * change.
+ */
+export async function listLiveActivity(
+  eventId: string,
+  limit = 6
+): Promise<{ id: string; line: string; createdAt: Date }[]> {
+  const { auditLog } = await import("@/db/schema")
+  const rows = await db
+    .select()
+    .from(auditLog)
+    .where(eq(auditLog.eventId, eventId))
+    .orderBy(desc(auditLog.createdAt))
+    .limit(limit)
+
+  return rows.map((r) => ({
+    id: r.id,
+    createdAt: r.createdAt,
+    line: humaniseAction(r.action, r.meta),
+  }))
+}
+
+function humaniseAction(action: string, meta: unknown): string {
+  const m = (meta && typeof meta === "object" ? (meta as Record<string, unknown>) : {})
+  switch (action) {
+    case "event.created":
+      return `Event created (${m.orgName ?? "unnamed"})`
+    case "event.archived":
+      return "Event archived"
+    case "route.created":
+      return `Route “${m.name ?? "unnamed"}” created`
+    case "route.published":
+      return "Route published"
+    case "route.unpublished":
+      return "Route unpublished"
+    case "route.renamed":
+      return `Route renamed to “${m.name ?? "unnamed"}”`
+    case "route.archived":
+      return "Route archived"
+    case "checkpoint.created":
+      return `Checkpoint “${m.name ?? "unnamed"}” added`
+    case "checkpoint.updated":
+      return "Checkpoint updated"
+    case "checkpoint.archived":
+      return "Checkpoint archived"
+    case "checkpoint.reordered":
+      return "Checkpoint order updated"
+    case "checkpoint.secret_rotated":
+      return "Checkpoint secret rotated"
+    case "sponsor.created":
+      return `Sponsor “${m.name ?? "unnamed"}” added`
+    case "sponsor.updated":
+      return "Sponsor updated"
+    case "sponsor.archived":
+      return "Sponsor archived"
+    case "reward.created":
+      return `Reward “${m.name ?? "unnamed"}” added`
+    case "reward.updated":
+      return "Reward updated"
+    case "staff.invited":
+      return `Staff invited (${m.role ?? "role unknown"})`
+    case "staff.assigned":
+      return "Staff assigned to checkpoint"
+    case "staff.unassigned":
+      return "Staff unassigned"
+    case "redeem":
+      return `Reward “${m.rewardName ?? "unnamed"}” redeemed`
+    default:
+      return action.replace(/\./g, " ")
+  }
+}

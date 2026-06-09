@@ -10,6 +10,7 @@ import {
   isValidCheckpoint,
   recordScan,
 } from "@/lib/player-store"
+import { rateLimit, rateLimitKeyFromRequest } from "@/lib/rate-limit"
 
 interface ScanBody {
   checkpointId?: string
@@ -23,6 +24,25 @@ interface ScanBody {
 }
 
 export async function POST(req: Request) {
+  // Per-IP rate limit: 30 scans/minute is more than a real player can
+  // physically do across a venue. Catches brute-forcing the TOTP.
+  const limit = rateLimit(rateLimitKeyFromRequest(req), {
+    name: "play-scan",
+    limit: 30,
+    windowMs: 60_000,
+  })
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: "rate-limited", retryAfterMs: limit.retryAfterMs },
+      {
+        status: 429,
+        headers: {
+          "retry-after": Math.ceil(limit.retryAfterMs / 1000).toString(),
+        },
+      }
+    )
+  }
+
   const address = await getPlayAddress()
   if (!address) {
     return NextResponse.json(

@@ -19,9 +19,10 @@ import {
   getActiveEvent,
   getOverviewKpis,
   listCheckpoints,
+  listLiveActivity,
   listSponsors,
 } from "@/lib/event-queries"
-import { activity, hourlyTraffic } from "@/lib/mock-data"
+import { hourlyTraffic } from "@/lib/mock-data"
 import { cn } from "@/lib/utils"
 
 const statusDot: Record<string, string> = {
@@ -62,10 +63,11 @@ export default async function OverviewPage() {
     )
   }
 
-  const [checkpoints, sponsorsList, kpis] = await Promise.all([
+  const [checkpoints, sponsorsList, kpis, activity] = await Promise.all([
     listCheckpoints(event.id),
     listSponsors(event.id),
     getOverviewKpis(event.id),
+    listLiveActivity(event.id),
   ])
   const maxScans = Math.max(...hourlyTraffic.map((h) => h.scans))
   const needsAttention = checkpoints.filter((c) => c.status !== "healthy")
@@ -317,13 +319,26 @@ export default async function OverviewPage() {
           </div>
 
           <div>
-            <SectionHeading title="Live activity" hint="Last 15 minutes" />
+            <SectionHeading
+              title="Live activity"
+              hint={
+                activity.length === 0
+                  ? "No activity yet"
+                  : "From the event's audit log"
+              }
+            />
             <ul className="grid divide-y divide-border">
-              {activity.map((line, i) => (
-                <li key={line} className="grid gap-0.5 py-3">
-                  <p className="text-sm leading-snug">{line}</p>
+              {activity.length === 0 && (
+                <li className="py-3 text-sm text-muted-foreground">
+                  Nothing has happened yet. Activity surfaces here as
+                  staff configure the event and players move around.
+                </li>
+              )}
+              {activity.map((row) => (
+                <li key={row.id} className="grid gap-0.5 py-3">
+                  <p className="text-sm leading-snug">{row.line}</p>
                   <p className="font-mono text-[11px] text-muted-foreground">
-                    {`${15 - i * 2} min ago`}
+                    {formatActivityTime(row.createdAt)}
                   </p>
                 </li>
               ))}
@@ -333,6 +348,17 @@ export default async function OverviewPage() {
       </Section>
     </div>
   )
+}
+
+function formatActivityTime(d: Date): string {
+  const ms = Date.now() - d.getTime()
+  if (ms < 60_000) return "just now"
+  const mins = Math.floor(ms / 60_000)
+  if (mins < 60) return `${mins} min ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.floor(hrs / 24)
+  return `${days}d ago`
 }
 
 function Section({
