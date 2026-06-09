@@ -1,109 +1,62 @@
+import { and, eq, isNull, sql } from "drizzle-orm"
 import { type Address, getAddress } from "viem"
 
-import { checkpoints } from "./mock-data"
+import { db as defaultDb } from "@/db/client"
+import {
+  badgeMints,
+  checkpoints,
+  events,
+  players,
+  scans,
+} from "@/db/schema"
 
 /**
- * Server-side player progress store.
+ * Player progress, persistent.
  *
- * For the prototype this is a single in-process Map: every player's
- * scanned checkpoint set, keyed by checksummed wallet address. It
- * resets on dev-server reload, which is fine for an event-day
- * prototype. The interface below is the seam where Postgres/KV slots
- * in for the real deployment.
+ * `playerStore` exposes the same interface tests and route handlers
+ * already use, but every read and write hits Postgres via Drizzle.
  *
- * Why a thin module instead of inline maps in route files:
- *   - one place owns the invariant "addresses are checksummed"
- *   - tests can replace `store` with a fixture
- *   - swapping to a real DB doesn't touch routes
+ * Scoping
+ * ───────
+ * Most operations need an `eventId`. We accept it explicitly rather
+ * than reaching for "the active event" because:
+ *   - the play API resolves the event from the request URL / cookie
+ *     (TODO: today there's only one event; for multi-event support
+ *     the play landing carries the slug)
+ *   - tests pin a specific event id
+ *
+ * For now the API routes look up the single non-archived event and
+ * pass that. `currentEventId()` centralizes that lookup.
  */
 
-export interface PlayerProgress {
-  address: Address
-  scanned: string[] // checkpoint ids, ordered by scan time
-  startedAt: number
-  lastScanAt: number | null
-  badgeMintedAt: number | null
+type Db = typeof defaultDb
+
+let storeDb: Db = defaultDb
+
+/** Test-only: inject a different Drizzle client (e.g. pglite). */
+export function __setStoreDb(d: Db) {
+  storeDb = d
 }
 
-const VALID_CHECKPOINT_IDS = new Set(checkpoints.map((c) => c.id))
-
-export function isValidCheckpoint(id: string): boolean {
-  return VALID_CHECKPOINT_IDS.has(id)
+export function __resetStoreDb() {
+  storeDb = defaultDb
 }
 
-export function totalCheckpoints(): number {
-  return checkpoints.length
+/** Returns the id of the only live event, or throws. */
+export async function currentEventId(): Promise<string> {
+  const rows = await storeDb
+    .select({ id: events.id })
+    .from(events)
+    .where(isNull(events.archivedAt))
+    .limit(1)
+  if (rows.length === 0) {
+    throw new Error(
+      "No active event. Seed the database (`npm run db:seed`) before serving traffic."
+    )
+  }
+  return rows[0].id
 }
 
-class InMemoryStore {
-  private players = new Map<Address, PlayerProgress>()
-
-  get(address: Address): PlayerProgress | null {
-    return this.players.get(getAddress(address)) ?? null
-  }
-
-  /** Idempotently creates the player record if it didn't exist. */
-  ensure(address: Address): PlayerProgress {
-    const key = getAddress(address)
-    const existing = this.players.get(key)
-    if (existing) return existing
-    const fresh: PlayerProgress = {
-      address: key,
-      scanned: [],
-      startedAt: Date.now(),
-      lastScanAt: null,
-      badgeMintedAt: null,
-    }
-    this.players.set(key, fresh)
-    return fresh
-  }
-
-  /**
-   * Record a scan. Returns the updated progress, or null if the
-   * checkpoint id is invalid. Re-scanning an already-solved checkpoint
-   * is a no-op (idempotent) so a flaky NFC read can't reset progress.
-   */
-  scan(address: Address, checkpointId: string): PlayerProgress | null {
-    if (!isValidCheckpoint(checkpointId)) return null
-    const player = this.ensure(address)
-    if (!player.scanned.includes(checkpointId)) {
-      player.scanned = [...player.scanned, checkpointId]
-      player.lastScanAt = Date.now()
-    }
-    return player
-  }
-
-  /**
-   * Mark the player's badge as minted. Returns null if the player isn't
-   * eligible (hasn't solved every checkpoint yet) or has already
-   * minted.
-   */
-  recordBadgeMint(address: Address): PlayerProgress | null {
-    const player = this.players.get(getAddress(address))
-    if (!player) return null
-    if (player.scanned.length < totalCheckpoints()) return null
-    if (player.badgeMintedAt) return null
-    player.badgeMintedAt = Date.now()
-    return player
-  }
-
-  reset(): void {
-    this.players.clear()
-  }
-
-  size(): number {
-    return this.players.size
-  }
-}
-
-export const playerStore = new InMemoryStore()
-
-/** Convenience: did this address finish the loop? */
-export function hasFinishedLoop(progress: PlayerProgress): boolean {
-  return progress.scanned.length >= totalCheckpoints()
-}
-
-/** Shape returned to the client — never include server-only fields. */
 export interface PublicProgress {
   address: Address
   scanned: string[]
@@ -114,14 +67,158 @@ export interface PublicProgress {
   lastScanAt: number | null
 }
 
-export function toPublicProgress(p: PlayerProgress): PublicProgress {
+/** Idempotently get or create a player record. */
+export async function ensurePlayer(
+  eventId: string,
+  wallet: Address
+): Promise<{ id: string; wallet: Address; startedAt: number; lastScanAt: number | null }> {
+  const checksum = getAddress(wallet)
+  await storeDb
+    .insert(players)
+    .values({ eventId, wallet: checksum })
+    .onConflictDoNothing({
+      target: [players.eventId, players.wallet],
+    })
+
+  const [row] = await storeDb
+    .select()
+    .from(players)
+    .where(and(eq(players.eventId, eventId), eq(players.wallet, checksum)))
+    .limit(1)
+
   return {
-    address: p.address,
-    scanned: p.scanned,
-    total: totalCheckpoints(),
-    finished: hasFinishedLoop(p),
-    badgeMintedAt: p.badgeMintedAt,
-    startedAt: p.startedAt,
-    lastScanAt: p.lastScanAt,
+    id: row.id,
+    wallet: checksum,
+    startedAt: row.startedAt.getTime(),
+    lastScanAt: row.lastScanAt?.getTime() ?? null,
   }
+}
+
+/** Returns the total number of checkpoints for the event. */
+export async function totalCheckpoints(eventId: string): Promise<number> {
+  const [{ n }] = await storeDb
+    .select({ n: sql<number>`count(*)::int` })
+    .from(checkpoints)
+    .where(
+      and(eq(checkpoints.eventId, eventId), isNull(checkpoints.archivedAt))
+    )
+  return Number(n)
+}
+
+/** Returns true if the given checkpoint id exists in the event. */
+export async function isValidCheckpoint(
+  eventId: string,
+  checkpointId: string
+): Promise<boolean> {
+  if (!checkpointId) return false
+  const [row] = await storeDb
+    .select({ id: checkpoints.id })
+    .from(checkpoints)
+    .where(
+      and(
+        eq(checkpoints.id, checkpointId),
+        eq(checkpoints.eventId, eventId),
+        isNull(checkpoints.archivedAt)
+      )
+    )
+    .limit(1)
+  return !!row
+}
+
+/** Internal: load the scanned checkpoint ids for a player. */
+async function loadScans(playerId: string): Promise<string[]> {
+  const rows = await storeDb
+    .select({ id: scans.checkpointId, t: scans.createdAt })
+    .from(scans)
+    .where(eq(scans.playerId, playerId))
+    .orderBy(scans.createdAt)
+  return rows.map((r) => r.id)
+}
+
+async function loadBadgeMintedAt(playerId: string): Promise<number | null> {
+  const [row] = await storeDb
+    .select({ at: badgeMints.mintedAt })
+    .from(badgeMints)
+    .where(eq(badgeMints.playerId, playerId))
+    .limit(1)
+  return row?.at?.getTime() ?? null
+}
+
+/** Get the player's progress, or null if they haven't started. */
+export async function getProgress(
+  eventId: string,
+  wallet: Address
+): Promise<PublicProgress | null> {
+  const checksum = getAddress(wallet)
+  const [row] = await storeDb
+    .select()
+    .from(players)
+    .where(and(eq(players.eventId, eventId), eq(players.wallet, checksum)))
+    .limit(1)
+  if (!row) return null
+  const [scannedList, mintedAt, total] = await Promise.all([
+    loadScans(row.id),
+    loadBadgeMintedAt(row.id),
+    totalCheckpoints(eventId),
+  ])
+  return {
+    address: checksum,
+    scanned: scannedList,
+    total,
+    finished: scannedList.length >= total && total > 0,
+    badgeMintedAt: mintedAt,
+    startedAt: row.startedAt.getTime(),
+    lastScanAt: row.lastScanAt?.getTime() ?? null,
+  }
+}
+
+/** Record a scan. Idempotent on the (player, checkpoint) pair. */
+export async function recordScan(opts: {
+  eventId: string
+  wallet: Address
+  checkpointId: string
+}): Promise<PublicProgress | null> {
+  if (!(await isValidCheckpoint(opts.eventId, opts.checkpointId))) {
+    return null
+  }
+  const player = await ensurePlayer(opts.eventId, opts.wallet)
+  await storeDb
+    .insert(scans)
+    .values({
+      playerId: player.id,
+      checkpointId: opts.checkpointId,
+    })
+    .onConflictDoNothing({
+      target: [scans.playerId, scans.checkpointId],
+    })
+  await storeDb
+    .update(players)
+    .set({ lastScanAt: new Date() })
+    .where(eq(players.id, player.id))
+  return getProgress(opts.eventId, opts.wallet)
+}
+
+/** Persist a successful mint. Returns null on double-mint or no progress. */
+export async function recordBadgeMint(opts: {
+  eventId: string
+  wallet: Address
+  txHash: string
+  tokenId?: number
+}): Promise<PublicProgress | null> {
+  const player = await ensurePlayer(opts.eventId, opts.wallet)
+  const progress = await getProgress(opts.eventId, opts.wallet)
+  if (!progress) return null
+  if (!progress.finished) return null
+  if (progress.badgeMintedAt) return null
+
+  try {
+    await storeDb.insert(badgeMints).values({
+      playerId: player.id,
+      txHash: opts.txHash,
+      tokenId: opts.tokenId ?? null,
+    })
+  } catch {
+    // unique constraint hit → someone else recorded it first; reload.
+  }
+  return getProgress(opts.eventId, opts.wallet)
 }

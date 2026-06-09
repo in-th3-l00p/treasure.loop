@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server"
 
-import { getPlayAddress } from "@/lib/play-session"
 import {
-  playerStore,
-  toPublicProgress,
+  currentEventId,
+  ensurePlayer,
+  getProgress,
   totalCheckpoints,
 } from "@/lib/player-store"
+import { getPlayAddress } from "@/lib/play-session"
 
 export async function GET() {
   const address = await getPlayAddress()
@@ -16,9 +17,14 @@ export async function GET() {
     )
   }
 
-  const existing = playerStore.get(address) ?? playerStore.ensure(address)
+  const eventId = await currentEventId()
+  // Ensure player record exists for first-time visitors.
+  await ensurePlayer(eventId, address)
+  const progress = await getProgress(eventId, address)
+  const total = await totalCheckpoints(eventId)
+
   return NextResponse.json({
-    progress: toPublicProgress(existing),
-    total: totalCheckpoints(),
+    progress,
+    total,
   })
 }

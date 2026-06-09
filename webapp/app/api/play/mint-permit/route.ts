@@ -1,31 +1,21 @@
 import { NextResponse } from "next/server"
 
 import {
+  BADGE_CHAIN,
   BADGE_CONTRACT_ADDRESS,
   BADGE_CONTRACT_CONFIGURED,
-  BADGE_CHAIN,
 } from "@/lib/badge-contract"
 import { issueMintPermit } from "@/lib/mint-permits"
 import { getPlayAddress } from "@/lib/play-session"
 import {
-  hasFinishedLoop,
-  playerStore,
+  currentEventId,
+  getProgress,
   totalCheckpoints,
 } from "@/lib/player-store"
 
 /**
  * Issue an EIP-712-signed `MintPermit` for the SIWE-authenticated
  * player iff they have actually finished the loop.
- *
- * On success the response payload is everything the client needs to
- * call `badgeContract.mint(permit, signature)` via wagmi's
- * `useWriteContract`.
- *
- * The endpoint is intentionally non-mutating: it doesn't burn nonces
- * server-side. The contract is the source of truth for "this nonce was
- * used" — if the player submits the same permit twice the second
- * transaction reverts. We do, however, refuse to re-issue a permit
- * once we've observed the badge as minted (cuts down on permit churn).
  */
 export async function POST() {
   if (!BADGE_CONTRACT_CONFIGURED) {
@@ -47,7 +37,8 @@ export async function POST() {
     )
   }
 
-  const progress = playerStore.get(address)
+  const eventId = await currentEventId()
+  const progress = await getProgress(eventId, address)
   if (!progress) {
     return NextResponse.json(
       {
@@ -57,13 +48,13 @@ export async function POST() {
       { status: 400 }
     )
   }
-  if (!hasFinishedLoop(progress)) {
+  if (!progress.finished) {
     return NextResponse.json(
       {
         error: "loop-incomplete",
-        message: `Scan all ${totalCheckpoints()} checkpoints before minting.`,
+        message: `Scan all ${await totalCheckpoints(eventId)} checkpoints before minting.`,
         scanned: progress.scanned.length,
-        total: totalCheckpoints(),
+        total: progress.total,
       },
       { status: 400 }
     )

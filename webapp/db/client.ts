@@ -26,7 +26,6 @@ if (!url && process.env.NODE_ENV !== "test") {
   // Build-time imports may happen without a DB; we surface a clearer
   // error than "undefined.length" when an API route tries to query.
   // (Tests bypass this by injecting their own client.)
-  // eslint-disable-next-line no-console
   console.warn(
     "[db] DATABASE_URL is not set. API routes that hit the database will fail."
   )
@@ -60,7 +59,6 @@ function buildDb() {
 
 // Singleton — re-used across HMR boundaries in dev.
 declare global {
-  // eslint-disable-next-line no-var
   var __treasureloop_db: ReturnType<typeof buildDb> | undefined
 }
 
