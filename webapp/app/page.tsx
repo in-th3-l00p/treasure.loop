@@ -97,53 +97,56 @@ function PhoneDemo() {
 
   return (
     <div className={`phone ${closed ? "phone-closed" : ""}`} aria-label="Checkpoint progress preview">
-      <div className="phone-shine" aria-hidden="true" />
-      <div className="phone-status">
-        <span>9:41</span>
-        <span>LTE 100%</span>
-      </div>
-      <div className="phone-cover">
-        <span className="cover-pulse" aria-hidden="true" />
-        <p>{closed ? "Loop complete" : "Checkpoint unlocked"}</p>
-        <span>Checkpoint {String(index).padStart(2, "0")} of 06</span>
-        <h2>{closed ? "Reward desk" : active.name}</h2>
-      </div>
-      <div className="phone-body">
-        <div className="phone-row">
-          <span className="row-icon" aria-hidden="true" />
-          <div>
-            <p>When</p>
-            <strong>Now, open until 18:00</strong>
-          </div>
+      <div className="phone-screen">
+        <div className="phone-shine" aria-hidden="true" />
+        <div className="phone-status">
+          <span>9:41</span>
+          <span className="phone-notch" aria-hidden="true" />
+          <span>LTE</span>
         </div>
-        <div className="phone-row">
-          <span className="row-icon row-icon-alt" aria-hidden="true" />
-          <div>
-            <p>Where</p>
-            <strong>{closed ? "Physical redemption desk" : active.where}</strong>
-          </div>
+        <div className="phone-cover">
+          <span className="cover-pulse" aria-hidden="true" />
+          <p>{closed ? "Loop complete" : "Checkpoint unlocked"}</p>
+          <span>Checkpoint {String(index).padStart(2, "0")} of 06</span>
+          <h2>{closed ? "Reward desk" : active.name}</h2>
         </div>
-        <div className="progress-card">
-          <div>
-            <strong>Your loop</strong>
-            <span>{closed ? "6 / 6" : `${index} / 6`}</span>
+        <div className="phone-body">
+          <div className="phone-row">
+            <span className="row-icon" aria-hidden="true" />
+            <div>
+              <p>When</p>
+              <strong>Now, open until 18:00</strong>
+            </div>
           </div>
-          <div className="bars" aria-hidden="true">
-            {checkpoints.map((checkpoint, itemIndex) => (
-              <i
-                key={checkpoint.name}
-                className={closed || itemIndex < index ? "bar-on" : ""}
-              />
-            ))}
+          <div className="phone-row">
+            <span className="row-icon row-icon-alt" aria-hidden="true" />
+            <div>
+              <p>Where</p>
+              <strong>{closed ? "Physical redemption desk" : active.where}</strong>
+            </div>
           </div>
+          <div className="progress-card">
+            <div>
+              <strong>Your loop</strong>
+              <span>{closed ? "6 / 6" : `${index} / 6`}</span>
+            </div>
+            <div className="bars" aria-hidden="true">
+              {checkpoints.map((checkpoint, itemIndex) => (
+                <i
+                  key={checkpoint.name}
+                  className={closed || itemIndex < index ? "bar-on" : ""}
+                />
+              ))}
+            </div>
+          </div>
+          <button className="phone-button" type="button">
+            {closed ? "Badge unlocked" : "Check in here"}
+          </button>
+          <p className="phone-caption">
+            {closed ? "Prize layer is ready" : "Hold phone to NFC tag"}
+          </p>
         </div>
       </div>
-      <button className="phone-button" type="button">
-        {closed ? "Badge unlocked" : "Check in here"}
-      </button>
-      <p className="phone-caption">
-        {closed ? "Prize layer is ready" : "Hold phone to NFC tag"}
-      </p>
     </div>
   );
 }
@@ -172,7 +175,7 @@ export default function Home() {
         <div className="hero-copy">
           <p className="eyebrow">Treasure hunt protocol for Web3 conferences</p>
           <h1>
-            Turn the venue into a playable map.
+            Turn the venue into a <em>playable</em> map.
           </h1>
           <p className="hero-sub">
             TreasureLoop routes attendees between staffed sponsor checkpoints,
@@ -181,17 +184,26 @@ export default function Home() {
           </p>
           <div className="hero-actions">
             <Link className="primary-action" href="/login">
-              Join the hunt
+              Open the console
             </Link>
             <Link className="secondary-action" href="/app">
-              View mock app
+              See an event in motion
             </Link>
           </div>
-          <div className="signal-row" aria-label="Product highlights">
-            <span>No gas friction</span>
-            <span>Staffed sponsor stations</span>
-            <span>Physical prize desk</span>
-          </div>
+          <dl className="signal-row" aria-label="Product highlights">
+            <div>
+              <dt>No gas</dt>
+              <dd>Wallet only at completion</dd>
+            </div>
+            <div>
+              <dt>Staffed</dt>
+              <dd>Sponsors run each checkpoint</dd>
+            </div>
+            <div>
+              <dt>Physical</dt>
+              <dd>Prize desk gates redemption</dd>
+            </div>
+          </dl>
         </div>
         <div className="hero-device">
           <PhoneDemo />
@@ -235,10 +247,18 @@ export default function Home() {
       </section>
 
       <section className="section story-band">
-        <p>
-          Selected clues can require two players to combine fragments, turning
-          the conference floor into a reason to meet someone new.
-        </p>
+        <div className="story-band-inner">
+          <p className="eyebrow">Designed for the floor</p>
+          <p className="story-quote">
+            Selected clues split a fragment between two players, so the
+            conference floor becomes the reason strangers find each other.
+          </p>
+          <div className="story-meta">
+            <span>Hybrid completion</span>
+            <span>Off-chain play, on-chain proof</span>
+            <span>Anti-farming by design</span>
+          </div>
+        </div>
       </section>
 
       <section className="section faq-section" id="faq">
@@ -257,15 +277,22 @@ export default function Home() {
       </section>
 
       <section className="final-cta">
-        <p className="eyebrow">Built by intheloop</p>
-        <h2>Ready to make your event a loop?</h2>
-        <p>
-          Configure the graph, place the checkpoints, and let the crowd chase
-          the route from booth to booth.
-        </p>
-        <Link className="primary-action" href="/login">
-          Start a deployment
-        </Link>
+        <div className="final-cta-inner">
+          <p className="eyebrow">Built by intheloop</p>
+          <h2>Ready to turn your venue into a loop?</h2>
+          <p>
+            Configure the graph, place the checkpoints, and let the crowd
+            chase the route from booth to booth.
+          </p>
+          <div className="hero-actions">
+            <Link className="primary-action" href="/login">
+              Start a deployment
+            </Link>
+            <Link className="secondary-action" href="/app">
+              Preview the console
+            </Link>
+          </div>
+        </div>
       </section>
 
       <footer className="footer">
@@ -273,7 +300,9 @@ export default function Home() {
           <Glyph />
           <span>TreasureLoop</span>
         </a>
-        <span>Cluj-Napoca, built for conference floors.</span>
+        <span className="footer-meta">
+          Built in Cluj-Napoca · Made for conference floors
+        </span>
       </footer>
     </main>
   );
