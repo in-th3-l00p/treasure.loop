@@ -1,11 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
-  type Address,
-  type Hex,
   generatePrivateKey,
   privateKeyToAccount,
 } from "viem/accounts"
-import { getAddress, verifyTypedData } from "viem"
+import { type Address, type Hex, getAddress, verifyTypedData } from "viem"
 
 import {
   BADGE_CHAIN,
@@ -104,7 +102,10 @@ describe("issueMintPermit", () => {
 
   it("modifying the permit body invalidates the signature", async () => {
     const { permit, signature } = await issueMintPermit({ player: PLAYER })
-    const tampered = { ...permit, deadline: permit.deadline + 60n * 60n }
+    const tampered = {
+      ...permit,
+      deadline: permit.deadline + BigInt(60 * 60),
+    }
     const ok = await verifyTypedData({
       address: signerAccount.address,
       domain: BADGE_EIP712_DOMAIN,

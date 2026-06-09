@@ -14,18 +14,52 @@ import {
 } from "@/components/ui/tabs"
 import { requireRoles } from "@/lib/auth-server"
 import { ROLES } from "@/lib/authz"
-import { checkpoints, hourlyTraffic, sponsors } from "@/lib/mock-data"
+import {
+  getActiveEvent,
+  listCheckpoints,
+  listSponsors,
+} from "@/lib/event-queries"
+import { hourlyTraffic } from "@/lib/mock-data"
 import { cn } from "@/lib/utils"
+
+const tierLabel: Record<string, string> = {
+  gold: "Gold",
+  prize: "Prize",
+  community: "Community",
+}
 
 export default async function SponsorsPage() {
   await requireRoles([ROLES.ORGANIZER, ROLES.SPONSOR])
+  const event = await getActiveEvent()
+  if (!event) {
+    return (
+      <div className="mx-auto max-w-md px-6 pt-24 text-center">
+        <h1 className="text-xl font-medium tracking-tight">No active event</h1>
+      </div>
+    )
+  }
+  const [sponsors, checkpoints] = await Promise.all([
+    listSponsors(event.id),
+    listCheckpoints(event.id),
+  ])
+  if (sponsors.length === 0) {
+    return (
+      <div className="mx-auto max-w-md px-6 pt-24 text-center">
+        <h1 className="text-xl font-medium tracking-tight">No sponsors yet</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Add a sponsor in the route builder to see traffic here.
+        </p>
+      </div>
+    )
+  }
   const activeSponsor = sponsors[0]
   const activeCheckpoint = checkpoints.find(
-    (c) => c.sponsor === activeSponsor.name
+    (c) => c.sponsorName === activeSponsor.name
   )
-  const conversionRate = Math.round(
-    (activeSponsor.conversations / activeSponsor.visits) * 100
-  )
+  const conversionRate =
+    activeSponsor.visits > 0
+      ? Math.round((activeSponsor.conversations / activeSponsor.visits) * 100)
+      : 0
   const maxScans = Math.max(...hourlyTraffic.map((h) => h.scans))
 
   return (
@@ -56,10 +90,13 @@ export default async function SponsorsPage() {
         <div className="grid divide-x divide-border overflow-hidden rounded-lg border border-border sm:grid-cols-2 lg:grid-cols-4">
           {sponsors.map((s) => {
             const active = s.name === activeSponsor.name
-            const rate = Math.round((s.conversations / s.visits) * 100)
+            const rate =
+              s.visits > 0
+                ? Math.round((s.conversations / s.visits) * 100)
+                : 0
             return (
               <Link
-                key={s.name}
+                key={s.id}
                 href="#"
                 data-active={active || undefined}
                 className={cn(
@@ -84,7 +121,7 @@ export default async function SponsorsPage() {
                     {s.name}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    {s.tier}
+                    {tierLabel[s.tier] ?? s.tier}
                   </span>
                 </div>
                 <div className="flex items-end justify-between gap-2">

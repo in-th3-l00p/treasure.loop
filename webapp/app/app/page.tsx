@@ -16,32 +16,59 @@ import {
 } from "@/components/ui/table"
 import { requireMember } from "@/lib/auth-server"
 import {
-  activity,
-  checkpoints,
-  event,
-  hourlyTraffic,
-  sponsors,
-} from "@/lib/mock-data"
+  getActiveEvent,
+  getOverviewKpis,
+  listCheckpoints,
+  listSponsors,
+} from "@/lib/event-queries"
+import { activity, hourlyTraffic } from "@/lib/mock-data"
 import { cn } from "@/lib/utils"
 
 const statusDot: Record<string, string> = {
-  Healthy: "bg-emerald-400",
-  Busy: "bg-amber-400",
-  "Needs staff": "bg-rose-400",
-  Offline: "bg-muted-foreground",
+  healthy: "bg-emerald-400",
+  busy: "bg-amber-400",
+  needs_staff: "bg-rose-400",
+  offline: "bg-muted-foreground",
 }
 
 const statusText: Record<string, string> = {
-  Healthy: "text-emerald-400/90",
-  Busy: "text-amber-400/90",
-  "Needs staff": "text-rose-400/90",
-  Offline: "text-muted-foreground",
+  healthy: "text-emerald-400/90",
+  busy: "text-amber-400/90",
+  needs_staff: "text-rose-400/90",
+  offline: "text-muted-foreground",
+}
+
+const statusLabel: Record<string, string> = {
+  healthy: "Healthy",
+  busy: "Busy",
+  needs_staff: "Needs staff",
+  offline: "Offline",
 }
 
 export default async function OverviewPage() {
   await requireMember()
+  const event = await getActiveEvent()
+  if (!event) {
+    return (
+      <div className="mx-auto max-w-md px-6 pt-24 text-center">
+        <h1 className="text-xl font-medium tracking-tight">
+          No active event
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Run <code className="font-mono text-xs">npm run db:seed</code> from the webapp
+          directory to create the pilot event.
+        </p>
+      </div>
+    )
+  }
+
+  const [checkpoints, sponsorsList, kpis] = await Promise.all([
+    listCheckpoints(event.id),
+    listSponsors(event.id),
+    getOverviewKpis(event.id),
+  ])
   const maxScans = Math.max(...hourlyTraffic.map((h) => h.scans))
-  const needsAttention = checkpoints.filter((c) => c.status !== "Healthy")
+  const needsAttention = checkpoints.filter((c) => c.status !== "healthy")
 
   return (
     <div className="mx-auto max-w-[1280px] px-6 pt-8 pb-16 lg:px-10">
@@ -70,27 +97,24 @@ export default async function OverviewPage() {
         <div className="grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2 lg:grid-cols-4">
           <Kpi
             label="Active players"
-            value={event.activePlayers.toLocaleString()}
-            delta="+38 last hour"
-            sparkline={[120, 180, 240, 290, 310, 348, 372, 386]}
+            value={kpis.activePlayers.toLocaleString()}
+            delta="Started a loop"
           />
           <Kpi
             label="Route completion"
-            value={`${event.routeCompletion}%`}
+            value={`${kpis.routeCompletion}%`}
             delta="of started loops"
-            progress={event.routeCompletion}
+            progress={kpis.routeCompletion}
           />
           <Kpi
             label="Sponsor visits"
-            value={event.sponsorVisits.toLocaleString()}
-            delta="+312 today"
-            sparkline={[420, 680, 1020, 1480, 1980, 2380, 2810, 3124]}
+            value={kpis.sponsorVisits.toLocaleString()}
+            delta="Total checkpoint scans"
           />
           <Kpi
             label="Badge mints"
-            value={event.badgeMints.toLocaleString()}
-            delta={`${event.completions - event.badgeMints} in queue`}
-            sparkline={[8, 22, 36, 54, 72, 88, 104, 118]}
+            value={kpis.badgeMints.toLocaleString()}
+            delta={`${Math.max(0, kpis.completions - kpis.badgeMints)} in queue`}
           />
         </div>
       </Section>
@@ -150,7 +174,7 @@ export default async function OverviewPage() {
                     <div className="min-w-0">
                       <p className="text-sm">{cp.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {cp.status} · {cp.area}
+                        {statusLabel[cp.status]} · {cp.area}
                       </p>
                     </div>
                   </div>
@@ -209,7 +233,7 @@ export default async function OverviewPage() {
                   <TableCell className="px-0 py-3.5">
                     <div className="flex items-center gap-3">
                       <span className="w-5 font-mono text-[11px] text-muted-foreground tabular-nums">
-                        {cp.id.replace("CP-", "")}
+                        {String(cp.orderIndex).padStart(2, "0")}
                       </span>
                       <div>
                         <p className="text-sm">{cp.name}</p>
@@ -220,7 +244,7 @@ export default async function OverviewPage() {
                     </div>
                   </TableCell>
                   <TableCell className="py-3.5 text-sm text-muted-foreground">
-                    {cp.sponsor}
+                    {cp.sponsorName ?? "—"}
                   </TableCell>
                   <TableCell className="py-3.5 text-right font-mono text-sm tabular-nums">
                     {cp.scans.toLocaleString()}
@@ -246,7 +270,7 @@ export default async function OverviewPage() {
                           statusDot[cp.status]
                         )}
                       />
-                      {cp.status}
+                      {statusLabel[cp.status]}
                     </span>
                   </TableCell>
                 </TableRow>
@@ -262,10 +286,18 @@ export default async function OverviewPage() {
               hint="Visits vs conversations today"
             />
             <ul className="grid gap-4">
-              {sponsors.map((s) => {
-                const rate = Math.round((s.conversations / s.visits) * 100)
+              {sponsorsList.length === 0 && (
+                <li className="text-sm text-muted-foreground">
+                  No sponsors yet.
+                </li>
+              )}
+              {sponsorsList.map((s) => {
+                const rate =
+                  s.visits > 0
+                    ? Math.round((s.conversations / s.visits) * 100)
+                    : 0
                 return (
-                  <li key={s.name} className="grid gap-1.5">
+                  <li key={s.id} className="grid gap-1.5">
                     <div className="flex items-baseline justify-between gap-2">
                       <span className="text-sm">{s.name}</span>
                       <span className="font-mono text-xs text-muted-foreground tabular-nums">

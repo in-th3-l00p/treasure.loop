@@ -26,20 +26,44 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { requireRoles } from "@/lib/auth-server"
 import { ROLES } from "@/lib/authz"
-import { checkpoints } from "@/lib/mock-data"
+import { getActiveEvent, listCheckpoints } from "@/lib/event-queries"
 import { cn } from "@/lib/utils"
 
 const clueLabel: Record<string, string> = {
   scan: "QR scan",
   staff: "Staff code",
   pair: "Paired fragment",
+  nfc: "NFC tag",
 }
-
-const checkpointClues = ["scan", "staff", "staff", "pair", "scan"] as const
 
 export default async function RoutesPage() {
   await requireRoles([ROLES.ORGANIZER])
-  const selectedIndex = 2
+  const event = await getActiveEvent()
+  if (!event) {
+    return (
+      <div className="mx-auto max-w-md px-6 pt-24 text-center">
+        <h1 className="text-xl font-medium tracking-tight">No active event</h1>
+      </div>
+    )
+  }
+  const checkpoints = await listCheckpoints(event.id)
+  if (checkpoints.length === 0) {
+    return (
+      <div className="mx-auto max-w-md px-6 pt-24 text-center">
+        <h1 className="text-xl font-medium tracking-tight">No checkpoints yet</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Seed the database to load the pilot route.
+        </p>
+      </div>
+    )
+  }
+  // Pick the first not-healthy checkpoint as the "selected" one,
+  // otherwise fall back to the third stop.
+  const selectedIndex =
+    Math.max(
+      0,
+      checkpoints.findIndex((c) => c.status !== "healthy")
+    ) || Math.min(2, checkpoints.length - 1)
   const selected = checkpoints[selectedIndex]
 
   return (
@@ -97,7 +121,7 @@ export default async function RoutesPage() {
           />
           <ul className="grid divide-y divide-border">
             {checkpoints.map((cp, i) => {
-              const clue = clueLabel[checkpointClues[i] ?? "scan"]
+              const clue = clueLabel[cp.clueType] ?? "QR scan"
               const active = i === selectedIndex
               return (
                 <li
@@ -116,7 +140,7 @@ export default async function RoutesPage() {
                   <div className="min-w-0">
                     <p className="truncate text-sm">{cp.name}</p>
                     <p className="truncate text-xs text-muted-foreground">
-                      {cp.sponsor} · {cp.area}
+                      {cp.sponsorName ?? "Unassigned"} · {cp.area ?? "—"}
                     </p>
                   </div>
                   <div className="flex items-center gap-3 pr-2">
@@ -168,7 +192,7 @@ export default async function RoutesPage() {
                 {selected.name}
               </h2>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Operated by {selected.sponsor} · {selected.area}
+                Operated by {selected.sponsorName ?? "—"} · {selected.area ?? "—"}
               </p>
             </div>
             <span className="flex items-center gap-1.5 text-xs text-rose-300/90">
@@ -194,7 +218,7 @@ export default async function RoutesPage() {
               </FormRow>
               <FormRow label="Prompt">
                 <Textarea
-                  defaultValue={selected.clue}
+                  defaultValue={selected.clue ?? ""}
                   rows={2}
                   className="resize-none text-sm"
                 />
