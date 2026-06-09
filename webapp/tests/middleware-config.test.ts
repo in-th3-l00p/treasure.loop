@@ -34,7 +34,6 @@ describe("APP_ROUTES wiring", () => {
       // Some routes are planned but not implemented (e.g. /app/players).
       // We don't fail those, but we do warn loudly so the team notices.
       if (!existsSync(pagePath)) {
-        // eslint-disable-next-line no-console
         console.warn(
           `[authz] ${route.href} declared in APP_ROUTES but missing ${pagePath}`
         )
