@@ -13,6 +13,7 @@ import {
   scans,
   sponsors,
 } from "@/db/schema"
+import { getSubject } from "./auth-server"
 
 /**
  * Read-only queries the operator console uses to render pages.
@@ -22,7 +23,29 @@ import {
  * tomorrow: by Clerk org id).
  */
 
-export async function getActiveEvent() {
+/**
+ * Returns the active event.
+ *
+ * If `orgId` is provided we scope to that Clerk org (the operator
+ * console path). Otherwise we resolve the current Clerk org from
+ * the request's auth context; if that's missing we fall back to the
+ * most-recently-created non-archived event (single-event dev mode
+ * and the attendee surface).
+ */
+export async function getActiveEvent(orgId?: string | null) {
+  let resolvedOrgId = orgId
+  if (resolvedOrgId === undefined) {
+    const subject = await getSubject()
+    resolvedOrgId = subject.orgId
+  }
+  if (resolvedOrgId) {
+    const [scoped] = await db
+      .select()
+      .from(events)
+      .where(and(eq(events.orgId, resolvedOrgId), isNull(events.archivedAt)))
+      .limit(1)
+    if (scoped) return scoped
+  }
   const [event] = await db
     .select()
     .from(events)
