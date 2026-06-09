@@ -9,6 +9,10 @@ import postgres from "postgres"
 
 import { drizzle } from "drizzle-orm/postgres-js"
 
+import {
+  currentCode,
+  generateCheckpointSecret,
+} from "../lib/checkpoint-codes"
 import * as schema from "./schema"
 
 async function main() {
@@ -109,10 +113,17 @@ async function main() {
         clue: c.clue,
         clueType: c.clueType,
         sponsorId: sponsorByName.get(c.sponsorName) ?? null,
+        totpSecret: generateCheckpointSecret(),
       }))
     )
     .returning()
   console.log(`[seed] ${cps.length} checkpoints`)
+  console.log("[seed] current codes (regenerate every 30s):")
+  for (const cp of cps) {
+    if (cp.totpSecret) {
+      console.log(`  ${cp.name.padEnd(20)} ${currentCode(cp.totpSecret, cp.name)}`)
+    }
+  }
 
   const rewardsData = [
     { name: "On-chain finisher badge", stockTotal: null, status: "minting" as const },
