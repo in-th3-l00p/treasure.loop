@@ -121,6 +121,9 @@ export const APP_ROUTES: RoutePolicy[] = [
   { href: "/app/players", check: canViewPlayers },
   { href: "/app/prize-desk", check: canVerifyRedemption },
   { href: "/app/verification", check: canVerifyRedemption },
+  { href: "/app/booth", check: canIssueScan },
+  { href: "/app/team", check: canInviteStaff },
+  { href: "/app/preflight", check: canConfigureEvent },
 ]
 
 /** Returns true if the subject is allowed at `pathname`. Unknown paths default to member-only. */

@@ -5,15 +5,18 @@ import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
 import { OrganizationSwitcher, UserButton } from "@clerk/nextjs"
 import {
+  ClipboardCheckIcon,
   GaugeIcon,
   GiftIcon,
   LifeBuoyIcon,
   MapPinnedIcon,
+  QrCodeIcon,
   RouteIcon,
   SearchIcon,
   SettingsIcon,
   ShieldCheckIcon,
   TicketIcon,
+  UserPlus2Icon,
   UsersIcon,
 } from "lucide-react"
 
@@ -28,11 +31,14 @@ const primaryNav = [
   { name: "Checkpoints", href: "/app/checkpoints", icon: MapPinnedIcon },
   { name: "Sponsors", href: "/app/sponsors", icon: TicketIcon },
   { name: "Players", href: "/app/players", icon: UsersIcon },
+  { name: "Team", href: "/app/team", icon: UserPlus2Icon },
 ]
 
 const opsNav = [
   { name: "Prize desk", href: "/app/prize-desk", icon: GiftIcon },
+  { name: "Booth", href: "/app/booth", icon: QrCodeIcon },
   { name: "Verification", href: "/app/verification", icon: ShieldCheckIcon },
+  { name: "Preflight", href: "/app/preflight", icon: ClipboardCheckIcon },
 ]
 
 const footerNav = [
