@@ -1,6 +1,7 @@
 import { auth, clerkClient } from "@clerk/nextjs/server"
 
-import { Button } from "@/components/ui/button"
+import { PageEmpty } from "@/components/product/empty-state"
+import { ProductPage, PageHeader } from "@/components/product/shell"
 import { requireRoles } from "@/lib/auth-server"
 import { ROLES } from "@/lib/authz"
 import { getActiveEvent } from "@/lib/event-queries"
@@ -22,12 +23,9 @@ export default async function TeamPage() {
 
   if (!orgId || !event) {
     return (
-      <div className="mx-auto max-w-md px-6 pt-24 text-center">
-        <h1 className="text-xl font-medium tracking-tight">No active event</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Create an event organization first.
-        </p>
-      </div>
+      <PageEmpty title="No active event">
+        Create an event organization first.
+      </PageEmpty>
     )
   }
 
@@ -51,19 +49,11 @@ export default async function TeamPage() {
   ])
 
   return (
-    <div className="mx-auto max-w-[1180px] px-6 pt-8 pb-16 lg:px-10">
-      <header className="flex flex-wrap items-end justify-between gap-6 pb-8">
-        <div className="max-w-xl">
-          <h1 className="text-xl font-medium tracking-tight">Team</h1>
-          <p className="mt-1.5 text-sm text-muted-foreground">
-            Invite booth staff, prize-desk operators, and sponsors. Roles
-            determine what they can see and do in the console.
-          </p>
-        </div>
-        <Button variant="outline" className="h-8" disabled>
-          Bulk invite via CSV
-        </Button>
-      </header>
+    <ProductPage width="narrow">
+      <PageHeader
+        title="Team"
+        description="Invite booth staff, prize-desk operators, and sponsors. Roles determine what they can see and do in the console."
+      />
 
       <div className="grid gap-10 lg:grid-cols-[1fr_1.3fr]">
         <section>
@@ -102,6 +92,6 @@ export default async function TeamPage() {
           />
         </section>
       </div>
-    </div>
+    </ProductPage>
   )
 }

@@ -5,6 +5,8 @@ import {
   XCircleIcon,
 } from "lucide-react"
 
+import { PageEmpty } from "@/components/product/empty-state"
+import { ProductPage, PageHeader } from "@/components/product/shell"
 import { requireRoles } from "@/lib/auth-server"
 import { ROLES } from "@/lib/authz"
 import { getActiveEvent } from "@/lib/event-queries"
@@ -15,25 +17,23 @@ export default async function PreflightPage() {
   await requireRoles([ROLES.ORGANIZER])
   const event = await getActiveEvent()
   if (!event) {
-    return (
-      <div className="mx-auto max-w-md px-6 pt-24 text-center">
-        <h1 className="text-xl font-medium tracking-tight">No active event</h1>
-      </div>
-    )
+    return <PageEmpty title="No active event" />
   }
 
   const report = await buildPreflightReport(event.id)
+  const summary = [
+    report.failures > 0 && `${report.failures} blocking`,
+    report.warnings > 0 && `${report.warnings} to review`,
+  ]
+    .filter(Boolean)
+    .join(" · ")
 
   return (
-    <div className="mx-auto max-w-[1180px] px-6 pt-8 pb-16 lg:px-10">
-      <header className="flex flex-wrap items-end justify-between gap-6 pb-8">
-        <div className="max-w-xl">
-          <h1 className="text-xl font-medium tracking-tight">Preflight</h1>
-          <p className="mt-1.5 text-sm text-muted-foreground">
-            Go/no-go checks before you open doors. Re-run this any time;
-            the data is fresh on every load.
-          </p>
-        </div>
+    <ProductPage width="narrow">
+      <PageHeader
+        title="Preflight"
+        description="Go/no-go checks before you open doors. Re-run this any time; the data is fresh on every load."
+      >
         <div
           className={cn(
             "flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs",
@@ -42,19 +42,16 @@ export default async function PreflightPage() {
               : "border-rose-400/40 bg-rose-500/10 text-rose-200"
           )}
         >
-          <span
-            className={cn(
-              "size-1.5 rounded-full",
-              report.ready ? "bg-emerald-400" : "bg-rose-400"
-            )}
-          />
-          {report.ready ? "Ready to run" : "Blocked — fix failures first"}
+          <span className="status-dot" />
+          {report.ready ? "Ready to run" : "Blocked"}
         </div>
-      </header>
+      </PageHeader>
 
-      <p className="mb-6 text-xs text-muted-foreground">
-        {report.failures} failure(s), {report.warnings} warning(s).
-      </p>
+      {summary && (
+        <p className="mb-6 font-mono text-[11px] tracking-[0.08em] text-muted-foreground uppercase">
+          {summary}
+        </p>
+      )}
 
       <ul className="grid divide-y divide-border border-y border-border">
         {report.checks.map((c) => (
@@ -73,9 +70,7 @@ export default async function PreflightPage() {
             </span>
             <div className="min-w-0">
               <p className="text-sm font-medium">{c.title}</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {c.detail}
-              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">{c.detail}</p>
             </div>
             <div className="text-right">
               {c.fixHref && c.level !== "ok" ? (
@@ -90,6 +85,6 @@ export default async function PreflightPage() {
           </li>
         ))}
       </ul>
-    </div>
+    </ProductPage>
   )
 }
