@@ -1,8 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { useCallback, useMemo, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ArrowLeftIcon,
   CheckCircle2Icon,
@@ -15,14 +15,19 @@ import { cn } from "@/lib/utils"
 
 import { PlayCta } from "../_components/play-cta"
 
-export default function ScanPage() {
+function ScanPageInner() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const urlCheckpointId = searchParams.get("cp")
+  const urlToken = searchParams.get("t")
   const { data: progress, isLoading, error } = useProgress()
   const { data: playEvent, isLoading: loadingEvent } = usePlayEvent()
   const scan = useRecordScan()
   const [code, setCode] = useState("")
   const [localError, setLocalError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  // Guard so a signed URL only auto-submits once per page load.
+  const tokenSubmitted = useRef(false)
 
   const scanned = useMemo(() => new Set(progress?.scanned ?? []), [progress])
   const checkpoints = playEvent?.checkpoints ?? []
@@ -30,6 +35,27 @@ export default function ScanPage() {
   const stepNumber = next
     ? checkpoints.findIndex((cp) => cp.id === next.id) + 1
     : null
+
+  const finishScan = useCallback(
+    (finished: boolean) => {
+      setSuccess(true)
+      setTimeout(() => {
+        router.push(finished ? "/play/claim" : "/play/progress")
+      }, 800)
+    },
+    [router]
+  )
+
+  const onScanError = useCallback((e: unknown) => {
+    const status = (e as Error & { status?: number }).status
+    setLocalError(
+      status === 401
+        ? "This scan link expired or you're not signed in. Ask staff for the code."
+        : e instanceof Error
+          ? e.message
+          : "Could not record scan."
+    )
+  }, [])
 
   const submit = useCallback(async () => {
     if (!next || !code.trim()) return
@@ -39,25 +65,27 @@ export default function ScanPage() {
         checkpointId: next.id,
         code: code.trim(),
       })
-      setSuccess(true)
-      setTimeout(() => {
-        if (data.progress.finished) {
-          router.push("/play/claim")
-        } else {
-          router.push("/play/progress")
-        }
-      }, 800)
+      finishScan(data.progress.finished)
     } catch (e) {
-      const status = (e as Error & { status?: number }).status
-      setLocalError(
-        status === 401
-          ? "Sign in with your wallet first."
-          : e instanceof Error
-            ? e.message
-            : "Could not record scan."
-      )
+      onScanError(e)
     }
-  }, [next, code, scan, router])
+  }, [next, code, scan, finishScan, onScanError])
+
+  // Tap-to-scan: a signed `?cp=&t=` URL submits the token automatically
+  // for the matching unscanned checkpoint, skipping manual code entry.
+  useEffect(() => {
+    if (tokenSubmitted.current) return
+    if (!urlCheckpointId || !urlToken) return
+    // Only auto-submit once progress is loaded and the checkpoint is
+    // still the one the player needs to scan next.
+    if (!progress || !next) return
+    if (next.id !== urlCheckpointId) return
+    tokenSubmitted.current = true
+    scan
+      .mutateAsync({ checkpointId: urlCheckpointId, t: urlToken })
+      .then((data) => finishScan(data.progress.finished))
+      .catch(onScanError)
+  }, [urlCheckpointId, urlToken, progress, next, scan, finishScan, onScanError])
 
   if (isLoading || loadingEvent) {
     return (
@@ -223,5 +251,20 @@ export default function ScanPage() {
         </div>
       </div>
     </main>
+  )
+}
+
+export default function ScanPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
+          <Loader2Icon className="mr-2 size-4 animate-spin" />
+          Loading checkpoint…
+        </main>
+      }
+    >
+      <ScanPageInner />
+    </Suspense>
   )
 }

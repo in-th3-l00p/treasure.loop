@@ -122,7 +122,10 @@ export async function getProgress(): Promise<{
 
 export async function recordScan(args: {
   checkpointId: string
-  code: string
+  /** Manual TOTP code; optional when a signed URL token is supplied. */
+  code?: string
+  /** HMAC-signed URL token from a tap-to-scan flow (`/play/scan?…&t=…`). */
+  t?: string
 }): Promise<{ progress: PublicProgress }> {
   return jsonFetch("/api/play/scan", {
     method: "POST",

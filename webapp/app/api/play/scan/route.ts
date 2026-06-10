@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { and, eq } from "drizzle-orm"
 
 import { db } from "@/db/client"
-import { checkpoints } from "@/db/schema"
+import { auditLog, checkpoints } from "@/db/schema"
 import { verifyCheckpointCode } from "@/lib/checkpoint-codes"
 import { getPlayAddress } from "@/lib/play-session"
 import {
@@ -11,6 +11,7 @@ import {
   recordScan,
 } from "@/lib/player-store"
 import { rateLimit, rateLimitKeyFromRequest } from "@/lib/rate-limit"
+import { verifyScanToken } from "@/lib/scan-url"
 
 interface ScanBody {
   checkpointId?: string
@@ -21,6 +22,43 @@ interface ScanBody {
    * ±1 window drift tolerance.
    */
   code?: string
+  /**
+   * Optional HMAC-signed URL token from a tap-to-scan flow
+   * (`/play/scan?cp=…&t=…`). When present it MUST verify; when absent we
+   * fall through to the TOTP `code` path so manual entry still works.
+   */
+  t?: string
+}
+
+type RejectReason =
+  | "bad-url-token"
+  | "unknown-checkpoint"
+  | "invalid-code"
+  | "checkpoint-not-configured"
+  | "scan-rejected"
+
+/**
+ * Best-effort audit row for a rejected scan. Wrapped so an audit-write
+ * failure never blocks the player's response. We intentionally do NOT
+ * log the rate-limited (429) path to avoid flooding the table.
+ */
+async function auditReject(opts: {
+  reason: RejectReason
+  actor: string
+  eventId: string | null
+  checkpointId: string | null
+}): Promise<void> {
+  try {
+    await db.insert(auditLog).values({
+      eventId: opts.eventId,
+      actor: opts.actor,
+      action: "player.scan_rejected",
+      target: opts.checkpointId,
+      meta: { reason: opts.reason },
+    })
+  } catch {
+    // Audit is best-effort; swallow so the response is never blocked.
+  }
 }
 
 export async function POST(req: Request) {
@@ -64,44 +102,81 @@ export async function POST(req: Request) {
       { status: 400 }
     )
   }
-  if (!body.code || body.code.trim().length === 0) {
+
+  // A tap-to-scan URL carries a signed token (`t`). When present it must
+  // verify for this checkpoint; otherwise we require a manual TOTP code.
+  const hasToken = typeof body.t === "string" && body.t.length > 0
+  if (!hasToken && (!body.code || body.code.trim().length === 0)) {
     return NextResponse.json({ error: "missing-code" }, { status: 400 })
   }
 
   const eventId = await currentEventId()
 
   if (!(await isValidCheckpoint(eventId, body.checkpointId))) {
+    await auditReject({
+      reason: "unknown-checkpoint",
+      actor: address,
+      eventId,
+      checkpointId: body.checkpointId,
+    })
     return NextResponse.json(
       { error: "unknown-checkpoint" },
       { status: 400 }
     )
   }
 
-  // Pull the checkpoint's TOTP secret and verify the code.
-  const [cp] = await db
-    .select({ secret: checkpoints.totpSecret })
-    .from(checkpoints)
-    .where(
-      and(
-        eq(checkpoints.id, body.checkpointId),
-        eq(checkpoints.eventId, eventId)
-      )
-    )
-    .limit(1)
-
-  if (!cp?.secret) {
-    // Checkpoint hasn't been configured with a TOTP secret yet.
-    // Soft-fail so a half-configured event doesn't silently accept
-    // every code in production. (Tests / older seeds bypass this by
-    // setting `ALLOW_UNSECURED_SCANS=1` in env.)
-    if (process.env.ALLOW_UNSECURED_SCANS !== "1") {
-      return NextResponse.json(
-        { error: "checkpoint-not-configured" },
-        { status: 503 }
-      )
+  if (hasToken) {
+    // Signed-URL path: the token proves a recent tap of this checkpoint's
+    // NFC tag. Reject if it doesn't verify; never silently fall back to
+    // the TOTP code (a bad token is a tamper signal, not a typo).
+    if (!verifyScanToken(body.checkpointId, body.t as string)) {
+      await auditReject({
+        reason: "bad-url-token",
+        actor: address,
+        eventId,
+        checkpointId: body.checkpointId,
+      })
+      return NextResponse.json({ error: "bad-url-token" }, { status: 401 })
     }
-  } else if (!verifyCheckpointCode(cp.secret, body.code)) {
-    return NextResponse.json({ error: "invalid-code" }, { status: 401 })
+  } else {
+    // Manual-entry path: pull the checkpoint's TOTP secret and verify.
+    const [cp] = await db
+      .select({ secret: checkpoints.totpSecret })
+      .from(checkpoints)
+      .where(
+        and(
+          eq(checkpoints.id, body.checkpointId),
+          eq(checkpoints.eventId, eventId)
+        )
+      )
+      .limit(1)
+
+    if (!cp?.secret) {
+      // Checkpoint hasn't been configured with a TOTP secret yet.
+      // Soft-fail so a half-configured event doesn't silently accept
+      // every code in production. (Tests / older seeds bypass this by
+      // setting `ALLOW_UNSECURED_SCANS=1` in env.)
+      if (process.env.ALLOW_UNSECURED_SCANS !== "1") {
+        await auditReject({
+          reason: "checkpoint-not-configured",
+          actor: address,
+          eventId,
+          checkpointId: body.checkpointId,
+        })
+        return NextResponse.json(
+          { error: "checkpoint-not-configured" },
+          { status: 503 }
+        )
+      }
+    } else if (!verifyCheckpointCode(cp.secret, body.code as string)) {
+      await auditReject({
+        reason: "invalid-code",
+        actor: address,
+        eventId,
+        checkpointId: body.checkpointId,
+      })
+      return NextResponse.json({ error: "invalid-code" }, { status: 401 })
+    }
   }
 
   const progress = await recordScan({
@@ -110,6 +185,12 @@ export async function POST(req: Request) {
     checkpointId: body.checkpointId,
   })
   if (!progress) {
+    await auditReject({
+      reason: "scan-rejected",
+      actor: address,
+      eventId,
+      checkpointId: body.checkpointId,
+    })
     return NextResponse.json({ error: "scan-rejected" }, { status: 400 })
   }
 
