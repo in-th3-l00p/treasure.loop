@@ -115,6 +115,7 @@ export interface RoutePolicy {
 
 export const APP_ROUTES: RoutePolicy[] = [
   { href: "/app", check: canViewOverview },
+  { href: "/app/live", check: canConfigureEvent },
   { href: "/app/routes", check: canConfigureEvent },
   { href: "/app/checkpoints", check: canConfigureEvent },
   { href: "/app/sponsors", check: canViewSponsorReports },

@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import {
+  ActivityIcon,
   ClipboardCheckIcon,
   GaugeIcon,
   GiftIcon,
@@ -90,6 +91,14 @@ export function CommandPalette({
               keywords={["live", "dashboard", "home", "overview"]}
             >
               <GaugeIcon /> Overview
+            </CommandItem>
+          )}
+          {canReach("/app/live") && (
+            <CommandItem
+              onSelect={() => go("/app/live")}
+              keywords={["ops", "dashboard", "monitor", "realtime", "report"]}
+            >
+              <ActivityIcon /> Live ops
             </CommandItem>
           )}
           {canReach("/app/routes") && (

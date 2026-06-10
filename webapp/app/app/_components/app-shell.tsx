@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
 import { OrganizationSwitcher, UserButton } from "@clerk/nextjs"
 import {
+  ActivityIcon,
   ClipboardCheckIcon,
   GaugeIcon,
   GiftIcon,
@@ -33,6 +34,7 @@ const manageNav = [
 ]
 
 const opsNav = [
+  { name: "Live", href: "/app/live", icon: ActivityIcon },
   { name: "Prize desk", href: "/app/prize-desk", icon: GiftIcon },
   { name: "Booth", href: "/app/booth", icon: QrCodeIcon },
   { name: "Preflight", href: "/app/preflight", icon: ClipboardCheckIcon },
