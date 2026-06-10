@@ -259,7 +259,7 @@ describe("audit trail", () => {
     expect(rows[0].target).toBe(checkpointIds[0])
     const meta = rows[0].meta as { wallet?: string; checkpointName?: string }
     expect(meta.wallet).toBe(WALLET_A)
-    expect(typeof meta.checkpointName).toBe("string")
+    expect(meta.checkpointName).toBeTruthy()
   })
 
   it("writes one player.minted row per mint", async () => {
@@ -287,5 +287,16 @@ describe("audit trail", () => {
     expect(rows).toHaveLength(1)
     const meta = rows[0].meta as { wallet?: string }
     expect(meta.wallet).toBe(WALLET_A)
+  })
+
+  it("writes no audit row for an invalid checkpoint", async () => {
+    const result = await recordScan({
+      eventId,
+      wallet: WALLET_A,
+      checkpointId: "cp_does_not_exist",
+    })
+    expect(result).toBeNull()
+    const rows = await handle.db.select().from(auditLog)
+    expect(rows).toHaveLength(0)
   })
 })

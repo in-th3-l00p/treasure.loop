@@ -239,38 +239,47 @@ export async function recordScan(opts: {
     return null
   }
   const player = await ensurePlayer(opts.eventId, opts.wallet)
-  const inserted = await storeDb
-    .insert(scans)
-    .values({
-      playerId: player.id,
-      checkpointId: opts.checkpointId,
-    })
-    .onConflictDoNothing({
-      target: [scans.playerId, scans.checkpointId],
-    })
-    // No column args: drizzle's onConflictDoNothing chain only types the
-    // bare form. We only check `length` to detect a genuinely new row.
-    .returning()
+  let inserted: { id: string }[] = []
+  await storeDb.transaction(async (tx) => {
+    inserted = await tx
+      .insert(scans)
+      .values({
+        playerId: player.id,
+        checkpointId: opts.checkpointId,
+      })
+      .onConflictDoNothing({
+        target: [scans.playerId, scans.checkpointId],
+      })
+      // No column args: drizzle's onConflictDoNothing chain only types the
+      // bare form. We only check `length` to detect a genuinely new row.
+      .returning()
 
-  if (inserted.length > 0) {
-    const [cp] = await storeDb
-      .select({ name: checkpoints.name })
-      .from(checkpoints)
-      .where(eq(checkpoints.id, opts.checkpointId))
-      .limit(1)
-    await storeDb.insert(auditLog).values({
-      eventId: opts.eventId,
-      actor: player.wallet,
-      action: "player.scanned",
-      target: opts.checkpointId,
-      meta: { wallet: player.wallet, checkpointName: cp?.name ?? null },
-    })
-  }
+    if (inserted.length > 0) {
+      const [cp] = await tx
+        .select({ name: checkpoints.name })
+        .from(checkpoints)
+        .where(
+          and(
+            eq(checkpoints.id, opts.checkpointId),
+            isNull(checkpoints.archivedAt)
+          )
+        )
+        .limit(1)
+      await tx.insert(auditLog).values({
+        eventId: opts.eventId,
+        actor: player.wallet,
+        action: "player.scanned",
+        target: opts.checkpointId,
+        meta: { wallet: player.wallet, checkpointName: cp?.name ?? null },
+      })
+    }
 
-  await storeDb
-    .update(players)
-    .set({ lastScanAt: new Date() })
-    .where(eq(players.id, player.id))
+    await tx
+      .update(players)
+      .set({ lastScanAt: new Date() })
+      .where(eq(players.id, player.id))
+  })
+
   return getProgress(opts.eventId, opts.wallet)
 }
 
@@ -288,17 +297,19 @@ export async function recordBadgeMint(opts: {
   if (progress.badgeMintedAt) return null
 
   try {
-    await storeDb.insert(badgeMints).values({
-      playerId: player.id,
-      txHash: opts.txHash,
-      tokenId: opts.tokenId ?? null,
-    })
-    await storeDb.insert(auditLog).values({
-      eventId: opts.eventId,
-      actor: player.wallet,
-      action: "player.minted",
-      target: opts.txHash,
-      meta: { wallet: player.wallet, tokenId: opts.tokenId ?? null },
+    await storeDb.transaction(async (tx) => {
+      await tx.insert(badgeMints).values({
+        playerId: player.id,
+        txHash: opts.txHash,
+        tokenId: opts.tokenId ?? null,
+      })
+      await tx.insert(auditLog).values({
+        eventId: opts.eventId,
+        actor: player.wallet,
+        action: "player.minted",
+        target: opts.txHash,
+        meta: { wallet: player.wallet, tokenId: opts.tokenId ?? null },
+      })
     })
   } catch {
     // unique constraint hit → someone else recorded it first; reload.
