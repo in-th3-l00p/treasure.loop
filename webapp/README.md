@@ -1,6 +1,34 @@
 # TreasureLoop webapp
 
-Operator console for TreasureLoop events. Next.js 16 + React 19 + Tailwind v4 + shadcn/ui + Clerk.
+The Next.js app for TreasureLoop. It hosts three surfaces: the marketing
+**landing** (`/`), the **operator console** (`/app/**`, Clerk auth), and
+the **attendee play** surface (`/play/**`, wallet + SIWE).
+
+Stack: Next.js 16 + React 19 + TypeScript (strict) + Tailwind v4 +
+shadcn/ui (`base-nova`). Operator auth is **Clerk** (Organizations +
+roles); attendee auth is **wallet + SIWE** over **RainbowKit / wagmi /
+viem** with an **iron-session** encrypted cookie. Data is **Postgres via
+Drizzle** (Neon in prod, Docker/PGlite locally); per-checkpoint scan
+codes use **TOTP** (`otpauth`).
+
+See `../CONTRIBUTING.md` for full setup, `../ROADMAP.md` for the plan,
+and `../docs/adr/` for why Drizzle, iron-session, Clerk, and RainbowKit
+were chosen.
+
+## Environment variables
+
+The non-Clerk variables (full table incl. dev fallbacks in
+`../CONTRIBUTING.md`):
+
+- `DATABASE_URL` — Postgres connection (local: `postgres://postgres:postgres@localhost:5433/treasureloop`).
+- `PLAY_SESSION_SECRET` — encrypts the attendee session cookie (required in prod).
+- `SCAN_URL_SECRET` — HMAC key for signed scan URLs (required in prod).
+- `NEXT_PUBLIC_BADGE_CONTRACT_ADDRESS` + `BADGE_SIGNER_PRIVATE_KEY` — badge contract + server-only EIP-712 signing key for mint permits.
+- `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` — optional; mobile-wallet deeplinks.
+- `ALLOW_UNSECURED_SCANS=1` — dev/test only; accept scans on checkpoints without a TOTP secret.
+
+Clerk variables and keyless dev mode are covered below. `GET /api/health`
+reports which of these are configured (and 503s if the DB is down).
 
 ## Local setup
 
@@ -88,6 +116,13 @@ Add a new role-gated route by:
 | `npm run lint` | ESLint |
 | `npm test` | Run Vitest unit tests once |
 | `npm run test:watch` | Run Vitest in watch mode |
+| `npm run db:generate` | Generate a Drizzle migration from schema changes |
+| `npm run db:migrate` | Apply migrations (`tsx db/migrate.ts`) |
+| `npm run db:seed` | Seed the ETH Cluj pilot event (`tsx db/seed.ts`) |
+| `npm run db:studio` | Drizzle Studio |
+
+The play API (`app/api/play/`) exposes: `auth` (SIWE nonce/verify/me/logout),
+`event`, `progress`, `scan`, `mint-permit`, `mint-confirm`.
 
 ## Layout
 

@@ -3,6 +3,40 @@
 `TreasureLoopBadge.sol` — the ERC-721 finisher badge minted at the end
 of a successful TreasureLoop event. One contract instance per event.
 
+Foundry project (Solidity 0.8.24, OpenZeppelin v5.1.0). The webapp signs
+EIP-712 `MintPermit`s with `BADGE_SIGNER_PRIVATE_KEY`
+(`webapp/lib/mint-permits.ts`); the player submits the permit to `mint()`
+from their own wallet. Status: written + Foundry-tested; **not yet
+deployed** to a live network (ROADMAP Phase 4).
+
+## Layout
+
+```text
+src/TreasureLoopBadge.sol          the badge contract
+test/TreasureLoopBadge.t.sol       Foundry tests (mint, replay, deadline,
+                                   nonce, signer rotation, pause, tokenURI)
+script/Deploy.s.sol                Foundry deploy script
+foundry.toml                       solc 0.8.24, optimizer (200 runs), remappings
+lib/                               forge-std, openzeppelin-contracts (forge install)
+```
+
+## Build & test
+
+```bash
+forge install OpenZeppelin/openzeppelin-contracts@v5.1.0   # first time
+forge build
+forge test
+```
+
+## Environment (deploy)
+
+| Variable | Purpose |
+|---|---|
+| `BASE_SEPOLIA_RPC` | RPC endpoint for the target chain |
+| `DEPLOYER_KEY` | Funded deployer private key |
+| `OWNER_ADDR` | Contract owner (pause / signer rotation) |
+| `SIGNER_ADDR` | Must equal the address of the webapp's `BADGE_SIGNER_PRIVATE_KEY` |
+
 ## Mint flow
 
 ```
