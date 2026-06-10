@@ -19,7 +19,7 @@ type Result<T = unknown> =
   | { ok: true; data?: T }
   | { ok: false; error: string; message: string }
 
-function err(error: string, message: string): Result {
+function err<T = unknown>(error: string, message: string): Result<T> {
   return { ok: false, error, message }
 }
 

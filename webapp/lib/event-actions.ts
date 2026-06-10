@@ -49,7 +49,7 @@ async function getOperatorContext() {
   return { subject, event }
 }
 
-function err(error: string, message: string): ActionResult {
+function err<T = unknown>(error: string, message: string): ActionResult<T> {
   return { ok: false, error, message }
 }
 

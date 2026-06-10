@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+import { NextResponse, type NextRequest } from "next/server"
 import { verifyWebhook } from "@clerk/nextjs/webhooks"
 
 import {
@@ -20,7 +20,7 @@ import {
  * person who signs in to an org — the `/no-organization` page calls
  * `ensureEventForOrg` server-side as a fallback.
  */
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   let event: Awaited<ReturnType<typeof verifyWebhook>>
   try {
     event = await verifyWebhook(req)
