@@ -12,6 +12,7 @@ import {
   rewards,
   scans,
   sponsors,
+  staffAssignments,
 } from "@/db/schema"
 import { getSubject } from "./auth-server"
 
@@ -213,6 +214,94 @@ export async function getOverviewKpis(
     completions: badgeMintCount, // mint == completion proof
     routeCompletion,
   }
+}
+
+export interface HourlyBucket {
+  hour: string
+  scans: number
+  completions: number
+}
+
+/**
+ * Real scan/mint counts bucketed by hour, oldest first. Empty buckets
+ * are filled so the chart keeps a stable rhythm during quiet hours.
+ * `sponsorId` narrows scans to one sponsor's checkpoints.
+ */
+export async function listHourlyTraffic(
+  eventId: string,
+  opts: { hours?: number; sponsorId?: string } = {}
+): Promise<HourlyBucket[]> {
+  const hours = opts.hours ?? 8
+
+  const scanRows = await db
+    .select({
+      bucket: sql<string>`to_char(date_trunc('hour', ${scans.createdAt}), 'HH24:00')`,
+      n: sql<number>`count(*)::int`,
+    })
+    .from(scans)
+    .innerJoin(checkpoints, eq(checkpoints.id, scans.checkpointId))
+    .where(
+      and(
+        eq(checkpoints.eventId, eventId),
+        opts.sponsorId ? eq(checkpoints.sponsorId, opts.sponsorId) : undefined,
+        sql`${scans.createdAt} > now() - (${hours}::int * interval '1 hour')`
+      )
+    )
+    .groupBy(sql`1`)
+
+  const mintRows = await db
+    .select({
+      bucket: sql<string>`to_char(date_trunc('hour', ${badgeMints.mintedAt}), 'HH24:00')`,
+      n: sql<number>`count(*)::int`,
+    })
+    .from(badgeMints)
+    .innerJoin(players, eq(players.id, badgeMints.playerId))
+    .where(
+      and(
+        eq(players.eventId, eventId),
+        sql`${badgeMints.mintedAt} > now() - (${hours}::int * interval '1 hour')`
+      )
+    )
+    .groupBy(sql`1`)
+
+  const scansBy = new Map(scanRows.map((r) => [r.bucket, r.n]))
+  const mintsBy = new Map(mintRows.map((r) => [r.bucket, r.n]))
+
+  const buckets: HourlyBucket[] = []
+  const now = new Date()
+  for (let i = hours - 1; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * 3_600_000)
+    const label = `${String(d.getUTCHours()).padStart(2, "0")}:00`
+    buckets.push({
+      hour: label,
+      scans: scansBy.get(label) ?? 0,
+      completions: mintsBy.get(label) ?? 0,
+    })
+  }
+  return buckets
+}
+
+/** Staff assignments per checkpoint (user ids; names live in Clerk). */
+export async function listStaffByCheckpoint(
+  eventId: string
+): Promise<Map<string, { userId: string; isPrimary: boolean }[]>> {
+  const rows = await db
+    .select({
+      checkpointId: staffAssignments.checkpointId,
+      userId: staffAssignments.userId,
+      isPrimary: staffAssignments.isPrimary,
+    })
+    .from(staffAssignments)
+    .innerJoin(checkpoints, eq(checkpoints.id, staffAssignments.checkpointId))
+    .where(eq(checkpoints.eventId, eventId))
+
+  const byCheckpoint = new Map<string, { userId: string; isPrimary: boolean }[]>()
+  for (const r of rows) {
+    const list = byCheckpoint.get(r.checkpointId) ?? []
+    list.push({ userId: r.userId, isPrimary: r.isPrimary })
+    byCheckpoint.set(r.checkpointId, list)
+  }
+  return byCheckpoint
 }
 
 /** Player records the operator sees in the verification queue. */
