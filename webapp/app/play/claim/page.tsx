@@ -87,6 +87,7 @@ export default function ClaimPage() {
 
   const mint = useCallback(async () => {
     setError(null)
+    setTokenId(null)
     setState("requesting-permit")
     try {
       const permit = await requestPermit.mutateAsync()
@@ -115,10 +116,14 @@ export default function ClaimPage() {
           logs: receipt.logs,
           eventName: "Transfer",
         })
-        const id = transfers[0]?.args.tokenId
+        // The mint emits exactly one Transfer from the zero address;
+        // token ids are sequential, so Number() never loses precision.
+        const id = transfers.find(
+          (t) => t.args.from === "0x0000000000000000000000000000000000000000"
+        )?.args.tokenId
         if (id !== undefined) {
           mintedTokenId = Number(id)
-          setTokenId(Number(id))
+          setTokenId(mintedTokenId)
         }
       }
       setState("recording")
