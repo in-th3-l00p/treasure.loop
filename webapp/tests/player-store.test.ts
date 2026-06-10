@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { getAddress, type Address } from "viem"
+import { eq } from "drizzle-orm"
 
 import {
   __resetStoreDb,
@@ -11,6 +12,8 @@ import {
   recordScan,
   totalCheckpoints,
 } from "@/lib/player-store"
+
+import { auditLog } from "@/db/schema"
 
 import { newTestDb, seedTestEvent } from "./db-utils"
 
@@ -238,5 +241,51 @@ describe("getProgress shape", () => {
 
   it("returns null for a wallet that never started", async () => {
     expect(await getProgress(eventId, WALLET_B)).toBeNull()
+  })
+})
+
+describe("audit trail", () => {
+  it("writes one player.scanned row per first scan", async () => {
+    await recordScan({ eventId, wallet: WALLET_A, checkpointId: checkpointIds[0] })
+    // Idempotent replay must NOT produce a second audit row.
+    await recordScan({ eventId, wallet: WALLET_A, checkpointId: checkpointIds[0] })
+
+    const rows = await handle.db
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.action, "player.scanned"))
+    expect(rows).toHaveLength(1)
+    expect(rows[0].eventId).toBe(eventId)
+    expect(rows[0].target).toBe(checkpointIds[0])
+    const meta = rows[0].meta as { wallet?: string; checkpointName?: string }
+    expect(meta.wallet).toBe(WALLET_A)
+    expect(typeof meta.checkpointName).toBe("string")
+  })
+
+  it("writes one player.minted row per mint", async () => {
+    for (const id of checkpointIds) {
+      await recordScan({ eventId, wallet: WALLET_A, checkpointId: id })
+    }
+    await recordBadgeMint({
+      eventId,
+      wallet: WALLET_A,
+      txHash: "0x" + "ab".repeat(32),
+      tokenId: 1,
+    })
+    // Double-mint attempt: no second audit row.
+    await recordBadgeMint({
+      eventId,
+      wallet: WALLET_A,
+      txHash: "0x" + "cd".repeat(32),
+      tokenId: 2,
+    })
+
+    const rows = await handle.db
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.action, "player.minted"))
+    expect(rows).toHaveLength(1)
+    const meta = rows[0].meta as { wallet?: string }
+    expect(meta.wallet).toBe(WALLET_A)
   })
 })

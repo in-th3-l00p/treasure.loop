@@ -15,6 +15,7 @@ import {
   staffAssignments,
 } from "@/db/schema"
 import { getSubject } from "./auth-server"
+import { shortAddress } from "./format"
 
 /**
  * Read-only queries the operator console uses to render pages.
@@ -425,7 +426,11 @@ function humaniseAction(action: string, meta: unknown): string {
     case "staff.unassigned":
       return "Staff unassigned"
     case "redeem":
-      return `Reward “${m.rewardName ?? "unnamed"}” redeemed`
+      return `Reward "${m.rewardName ?? "unnamed"}" redeemed`
+    case "player.scanned":
+      return `${shortAddress(String(m.wallet ?? ""))} scanned "${m.checkpointName ?? "a checkpoint"}"`
+    case "player.minted":
+      return `${shortAddress(String(m.wallet ?? ""))} minted their finisher badge`
     default:
       return action.replace(/\./g, " ")
   }

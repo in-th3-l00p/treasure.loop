@@ -3,6 +3,7 @@ import { type Address, getAddress } from "viem"
 
 import { db as defaultDb } from "@/db/client"
 import {
+  auditLog,
   badgeMints,
   checkpoints,
   events,
@@ -238,7 +239,7 @@ export async function recordScan(opts: {
     return null
   }
   const player = await ensurePlayer(opts.eventId, opts.wallet)
-  await storeDb
+  const inserted = await storeDb
     .insert(scans)
     .values({
       playerId: player.id,
@@ -247,6 +248,23 @@ export async function recordScan(opts: {
     .onConflictDoNothing({
       target: [scans.playerId, scans.checkpointId],
     })
+    .returning()
+
+  if (inserted.length > 0) {
+    const [cp] = await storeDb
+      .select({ name: checkpoints.name })
+      .from(checkpoints)
+      .where(eq(checkpoints.id, opts.checkpointId))
+      .limit(1)
+    await storeDb.insert(auditLog).values({
+      eventId: opts.eventId,
+      actor: player.wallet,
+      action: "player.scanned",
+      target: opts.checkpointId,
+      meta: { wallet: player.wallet, checkpointName: cp?.name ?? null },
+    })
+  }
+
   await storeDb
     .update(players)
     .set({ lastScanAt: new Date() })
@@ -272,6 +290,13 @@ export async function recordBadgeMint(opts: {
       playerId: player.id,
       txHash: opts.txHash,
       tokenId: opts.tokenId ?? null,
+    })
+    await storeDb.insert(auditLog).values({
+      eventId: opts.eventId,
+      actor: player.wallet,
+      action: "player.minted",
+      target: opts.txHash,
+      meta: { wallet: player.wallet, tokenId: opts.tokenId ?? null },
     })
   } catch {
     // unique constraint hit → someone else recorded it first; reload.
