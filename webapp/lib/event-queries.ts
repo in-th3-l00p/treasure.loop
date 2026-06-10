@@ -149,9 +149,9 @@ export async function listSponsors(eventId: string): Promise<SponsorRow[]> {
       name: sponsors.name,
       tier: sponsors.tier,
       visits: sql<number>`(
-        select count(*)::int from ${scans} s
-        join ${checkpoints} cp on cp.id = s.${checkpoints.id}
-        where cp.${checkpoints.sponsorId} = ${sponsors.id}
+        select count(*)::int from scans s
+        join checkpoints cp on cp.id = s.checkpoint_id
+        where cp.sponsor_id = sponsors.id
       )`,
     })
     .from(sponsors)
