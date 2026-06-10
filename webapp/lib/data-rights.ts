@@ -6,6 +6,8 @@ import {
   auditLog,
   badgeMints,
   checkpoints,
+  fragments,
+  leadConsents,
   players,
   redemptionClaims,
   rewards,
@@ -164,6 +166,8 @@ export interface ErasureResult {
   erased: boolean
   scansDeleted: number
   redemptionsDeleted: number
+  leadConsentsDeleted: number
+  fragmentsDeleted: number
   badgeMintsKept: number
   /** The anonymized placeholder the wallet was replaced with, if erased. */
   anonymizedWallet: string | null
@@ -201,6 +205,8 @@ export async function erasePlayerData(
     erased: false,
     scansDeleted: 0,
     redemptionsDeleted: 0,
+    leadConsentsDeleted: 0,
+    fragmentsDeleted: 0,
     badgeMintsKept: 0,
     anonymizedWallet: null,
   }
@@ -228,6 +234,19 @@ export async function erasePlayerData(
       .where(eq(redemptionClaims.playerId, player.id))
       .returning()
 
+    // Lead consents carry the player's real wallet as PII shared with a
+    // sponsor — delete them outright. Fragments carry no wallet directly
+    // but link back to the player; drop them too.
+    const deletedConsents = await tx
+      .delete(leadConsents)
+      .where(eq(leadConsents.playerId, player.id))
+      .returning()
+
+    const deletedFragments = await tx
+      .delete(fragments)
+      .where(eq(fragments.playerId, player.id))
+      .returning()
+
     const keptMints = await tx
       .select({ id: badgeMints.id })
       .from(badgeMints)
@@ -249,6 +268,8 @@ export async function erasePlayerData(
       meta: {
         scansDeleted: deletedScans.length,
         redemptionsDeleted: deletedRedemptions.length,
+        leadConsentsDeleted: deletedConsents.length,
+        fragmentsDeleted: deletedFragments.length,
         badgeMintsKept: keptMints.length,
       },
     })
@@ -257,6 +278,8 @@ export async function erasePlayerData(
       erased: true,
       scansDeleted: deletedScans.length,
       redemptionsDeleted: deletedRedemptions.length,
+      leadConsentsDeleted: deletedConsents.length,
+      fragmentsDeleted: deletedFragments.length,
       badgeMintsKept: keptMints.length,
       anonymizedWallet: anonymized,
     }

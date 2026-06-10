@@ -8,6 +8,7 @@ import {
   getPlayerActiveFragment,
   reportPairCheating,
 } from "@/lib/player-store"
+import { rateLimit, rateLimitKeyFromRequest } from "@/lib/rate-limit"
 
 /**
  * Pair-fragment endpoint (ROADMAP Phase 7).
@@ -42,6 +43,26 @@ export const GET = withRouteLogging(
 export const POST = withRouteLogging(
   "play/pair",
   async (req: Request, ctx: RouteContext) => {
+    // Rate-limit the combine endpoint: the entered code is a 5-char
+    // short code scoped to one checkpoint, so an unbounded POST loop
+    // could brute-force another player's code. 30/min per IP.
+    const limit = rateLimit(rateLimitKeyFromRequest(req), {
+      name: "play-pair",
+      limit: 30,
+      windowMs: 60_000,
+    })
+    if (!limit.ok) {
+      return NextResponse.json(
+        { error: "rate-limited", retryAfterMs: limit.retryAfterMs },
+        {
+          status: 429,
+          headers: {
+            "retry-after": Math.ceil(limit.retryAfterMs / 1000).toString(),
+          },
+        }
+      )
+    }
+
     const address = await getPlayAddress()
     if (!address) {
       return NextResponse.json({ error: "not-authenticated" }, { status: 401 })

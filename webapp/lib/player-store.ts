@@ -1,4 +1,4 @@
-import { and, eq, isNull, sql } from "drizzle-orm"
+import { and, desc, eq, isNull, sql } from "drizzle-orm"
 import { type Address, getAddress } from "viem"
 
 import { db as defaultDb } from "@/db/client"
@@ -371,6 +371,10 @@ export async function recordBadgeMint(opts: {
   txHash: string
   tokenId?: number
 }): Promise<PublicProgress | null> {
+  // Dress-rehearsal events never touch the chain: refuse to persist a
+  // badge_mints row even if a client POSTs mint-confirm directly. The
+  // mint-permit route also refuses, so no real permit is ever signed.
+  if (await isEventInRehearsal(opts.eventId)) return null
   const player = await ensurePlayer(opts.eventId, opts.wallet)
   const progress = await getProgress(opts.eventId, opts.wallet)
   if (!progress) return null
@@ -655,6 +659,7 @@ export type PairRejection =
   | "same-player"
   | "not-complementary"
   | "already-paired"
+  | "checkpoint-offline"
 
 export interface PairSuccess {
   ok: true
@@ -703,7 +708,10 @@ export async function combineFragments(opts: {
         isNull(fragments.pairedAt)
       )
     )
-    .orderBy(fragments.createdAt)
+    // Newest unpaired first — matches the fragment the /play/pair screen
+    // surfaces (getPlayerActiveFragment), so the code the player typed is
+    // resolved against the checkpoint they're actually looking at.
+    .orderBy(desc(fragments.createdAt))
     .limit(1)
 
   if (!mine) {
@@ -743,6 +751,12 @@ export async function combineFragments(opts: {
   if (theirs.pairedAt !== null) return { ok: false, reason: "already-paired" }
   if (theirs.kind === mine.kind) {
     return { ok: false, reason: "not-complementary" }
+  }
+  // Don't pair at a paused booth: the grant scans below re-check offline
+  // and would silently no-op, stranding both fragments as "paired" with
+  // no progress. Refuse up front so the fragments stay combinable.
+  if (await isCheckpointOffline(opts.eventId, mine.checkpointId)) {
+    return { ok: false, reason: "checkpoint-offline" }
   }
 
   const now = new Date()

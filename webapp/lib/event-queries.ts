@@ -42,13 +42,17 @@ export async function getActiveEvent(orgId?: string | null) {
     resolvedOrgId = subject.orgId
   }
   if (resolvedOrgId) {
+    // A known org only ever resolves to ITS OWN event. Never fall back to
+    // another org's event — that would expose one tenant's data to another
+    // when their own event row hasn't been provisioned yet.
     const [scoped] = await db
       .select()
       .from(events)
       .where(and(eq(events.orgId, resolvedOrgId), isNull(events.archivedAt)))
       .limit(1)
-    if (scoped) return scoped
+    return scoped ?? null
   }
+  // No org context (public / dev / single-event seed): newest active event.
   const [event] = await db
     .select()
     .from(events)

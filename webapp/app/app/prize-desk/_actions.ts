@@ -181,23 +181,64 @@ export async function redeemReward(input: {
     }
   }
 
-  // 5. Atomic decrement-or-fail. The condition lives in WHERE so two
-  //    concurrent UPDATE statements can't both succeed past the cap.
-  const updated = await db
-    .update(rewards)
-    .set({
-      stockClaimed: sql`${rewards.stockClaimed} + 1`,
-    })
-    .where(
-      and(
-        eq(rewards.id, reward.id),
-        // either unlimited OR still under cap
-        sql`(${rewards.stockTotal} IS NULL OR ${rewards.stockClaimed} < ${rewards.stockTotal})`
-      )
-    )
-    .returning()
+  // 5+6. Decrement stock AND record the claim in ONE transaction, so a
+  //      failed or racing duplicate claim never leaks a stock unit. The
+  //      atomic WHERE keeps two concurrent decrements from passing the
+  //      cap; the (player_id, reward_id) unique index is the real
+  //      single-claim guard — a concurrent duplicate that slips past the
+  //      step-4 read trips it here and rolls the decrement back.
+  type RedeemTx =
+    | { ok: true; claimId: string; claimedAt: Date }
+    | { ok: false; error: "out-of-stock" }
 
-  if (updated.length === 0) {
+  let outcome: RedeemTx
+  try {
+    outcome = await db.transaction(async (tx): Promise<RedeemTx> => {
+      const updated = await tx
+        .update(rewards)
+        .set({ stockClaimed: sql`${rewards.stockClaimed} + 1` })
+        .where(
+          and(
+            eq(rewards.id, reward.id),
+            sql`(${rewards.stockTotal} IS NULL OR ${rewards.stockClaimed} < ${rewards.stockTotal})`
+          )
+        )
+        .returning()
+      if (updated.length === 0) {
+        return { ok: false, error: "out-of-stock" }
+      }
+      const [c] = await tx
+        .insert(redemptionClaims)
+        .values({
+          playerId: player.id,
+          rewardId: reward.id,
+          staffUserId: subject.userId ?? null,
+        })
+        .returning()
+      await tx.insert(auditLog).values({
+        eventId,
+        actor: subject.userId ?? "unknown",
+        action: "redeem",
+        target: reward.id,
+        meta: { wallet, rewardName: reward.name },
+      })
+      return { ok: true, claimId: c.id, claimedAt: c.claimedAt }
+    })
+  } catch (e) {
+    // Unique violation on (player_id, reward_id): a concurrent redeem won
+    // the race. The decrement rolled back with the transaction.
+    const code = (e as { code?: string }).code
+    if (code === "23505" || /duplicate key|unique/i.test(String(e))) {
+      return {
+        ok: false,
+        error: "already-claimed",
+        message: "This wallet has already claimed this reward.",
+      }
+    }
+    throw e
+  }
+
+  if (!outcome.ok) {
     return {
       ok: false,
       error: "out-of-stock",
@@ -205,35 +246,12 @@ export async function redeemReward(input: {
     }
   }
 
-  // 6. Record the claim. If this fails we need to roll back the
-  //    stock — wrap both in a transaction.
-  let claim: { id: string; claimedAt: Date } | null = null
-  await db.transaction(async (tx) => {
-    const [c] = await tx
-      .insert(redemptionClaims)
-      .values({
-        playerId: player.id,
-        rewardId: reward.id,
-        staffUserId: subject.userId ?? null,
-      })
-      .returning()
-    claim = { id: c.id, claimedAt: c.claimedAt }
-    await tx.insert(auditLog).values({
-      eventId,
-      actor: subject.userId ?? "unknown",
-      action: "redeem",
-      target: reward.id,
-      meta: { wallet, rewardName: reward.name },
-    })
-  })
-
   revalidatePath("/app/prize-desk")
-  const settled = claim as { id: string; claimedAt: Date } | null
   return {
     ok: true,
-    claimId: settled!.id,
+    claimId: outcome.claimId,
     rewardName: reward.name,
-    claimedAt: settled!.claimedAt.toISOString(),
+    claimedAt: outcome.claimedAt.toISOString(),
     staffUserId: subject.userId ?? null,
   }
 }

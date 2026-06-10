@@ -4,7 +4,7 @@ import { and, eq, isNull } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 
 import { db } from "@/db/client"
-import { auditLog, shareLinks } from "@/db/schema"
+import { auditLog, shareLinks, sponsors } from "@/db/schema"
 import { getSubject } from "./auth-server"
 import { canViewSponsor } from "./sponsor-access"
 import { activeShareLinkForSponsor, generateShareToken } from "./share-links"
@@ -40,6 +40,18 @@ export async function createShareLink(input: {
       "You can't manage this sponsor's link."
     )
 
+  // Derive the event from the sponsor row — never trust a client-supplied
+  // eventId, which would let an authorized caller stamp the link/audit row
+  // with an arbitrary event.
+  const [sponsor] = await db
+    .select({ eventId: sponsors.eventId })
+    .from(sponsors)
+    .where(eq(sponsors.id, input.sponsorId))
+    .limit(1)
+  if (!sponsor)
+    return err<{ token: string }>("not-found", "Sponsor not found.")
+  const eventId = sponsor.eventId
+
   const subject = await getSubject()
   const existing = await activeShareLinkForSponsor(db, input.sponsorId)
   if (existing) return { ok: true, data: { token: existing.token } }
@@ -48,12 +60,12 @@ export async function createShareLink(input: {
   await db.transaction(async (tx) => {
     await tx.insert(shareLinks).values({
       token,
-      eventId: input.eventId,
+      eventId,
       sponsorId: input.sponsorId,
       createdBy: subject.userId ?? "unknown",
     })
     await tx.insert(auditLog).values({
-      eventId: input.eventId,
+      eventId,
       actor: subject.userId ?? "unknown",
       action: "sponsor.share_link_created",
       target: input.sponsorId,

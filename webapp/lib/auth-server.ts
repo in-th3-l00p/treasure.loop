@@ -66,7 +66,11 @@ export async function getSubjectEmails(): Promise<string[]> {
   try {
     const user = await currentUser()
     if (!user) return []
+    // VERIFIED emails only. An unverified address can be added to a Clerk
+    // account without proving ownership; counting it would let a sponsor
+    // user claim another sponsor's booth scope by adding their email.
     return user.emailAddresses
+      .filter((e) => e.verification?.status === "verified")
       .map((e) => e.emailAddress?.toLowerCase())
       .filter((e): e is string => Boolean(e))
   } catch {

@@ -26,6 +26,8 @@ const REJECTION_COPY: Record<string, string> = {
   "already-paired": "One of these fragments is already paired.",
   "no-fragment": "You don't have a fragment to pair yet.",
   "missing-code": "Enter the other player's code.",
+  "checkpoint-offline": "That checkpoint is paused right now — try again shortly.",
+  "rate-limited": "Too many tries. Wait a moment and try again.",
 }
 
 function rejectionCopy(e: unknown): string {
