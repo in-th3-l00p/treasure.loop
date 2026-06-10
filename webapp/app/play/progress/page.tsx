@@ -11,12 +11,14 @@ import {
   TrophyIcon,
 } from "lucide-react"
 
-import { checkpoints } from "@/lib/mock-data"
-import { useProgress } from "@/lib/play-hooks"
+import { usePlayEvent, useProgress } from "@/lib/play-hooks"
 import { cn } from "@/lib/utils"
+
+import { PlayCta } from "../_components/play-cta"
 
 export default function ProgressPage() {
   const { data: progress, isLoading, error, refetch } = useProgress()
+  const { data: playEvent, isLoading: loadingEvent } = usePlayEvent()
 
   // Update "minutes elapsed" once a minute so we don't call Date.now()
   // during render. Initial value via lazy initializer to keep the
@@ -27,6 +29,7 @@ export default function ProgressPage() {
     return () => clearInterval(id)
   }, [])
 
+  const checkpoints = playEvent?.checkpoints ?? []
   const scanned = new Set(progress?.scanned ?? [])
   const completedCount = progress?.scanned.length ?? 0
   const total = progress?.total ?? checkpoints.length
@@ -40,7 +43,7 @@ export default function ProgressPage() {
     return checkpoints.findIndex((cp) => !scanned.has(cp.id))
   })()
 
-  const errStatus = (error as Error & { status?: number } | null)?.status
+  const errStatus = (error as (Error & { status?: number }) | null)?.status
   const errMessage =
     errStatus === 401
       ? "Sign in with your wallet to see your progress."
@@ -48,10 +51,12 @@ export default function ProgressPage() {
         ? error.message
         : null
 
+  const busy = isLoading || loadingEvent
+
   return (
-    <main className="play-progress relative min-h-screen overflow-hidden">
+    <main className="relative min-h-screen overflow-hidden">
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -top-32 left-1/4 size-[34rem] rounded-full bg-[radial-gradient(circle,oklch(73%_0.17_296_/_0.25),transparent_60%)] blur-2xl" />
+        <div className="absolute -top-32 left-1/4 size-[34rem] rounded-full bg-[radial-gradient(circle,oklch(73%_0.17_296_/_0.22),transparent_60%)] blur-2xl" />
       </div>
 
       <header className="relative mx-auto flex w-full max-w-md items-center justify-between px-5 pt-6">
@@ -76,19 +81,16 @@ export default function ProgressPage() {
             Your loop
           </p>
           <div className="flex items-end justify-between gap-3">
-            <h1 className="font-heading text-[36px] leading-tight font-medium tracking-tight">
+            <h1 className="text-[34px] leading-tight font-medium tracking-tight">
               {completedCount} of {total} solved
             </h1>
             <span className="pb-1 text-sm font-medium tabular-nums text-primary">
-              {total > 0
-                ? Math.round((completedCount / total) * 100)
-                : 0}
-              %
+              {total > 0 ? Math.round((completedCount / total) * 100) : 0}%
             </span>
           </div>
-          <div className="h-1 w-full overflow-hidden rounded-full bg-secondary/50">
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary/50">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-primary to-fuchsia-400 transition-[width]"
+              className="h-full rounded-full bg-primary transition-[width]"
               style={{
                 width: `${total > 0 ? (completedCount / total) * 100 : 0}%`,
               }}
@@ -96,14 +98,14 @@ export default function ProgressPage() {
           </div>
         </div>
 
-        {isLoading && (
+        {busy && (
           <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
             <Loader2Icon className="size-4 animate-spin" />
             Loading progress…
           </div>
         )}
 
-        {errMessage && !isLoading && (
+        {errMessage && !busy && (
           <div className="grid gap-4 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">
             <p>{errMessage}</p>
             <Link
@@ -115,7 +117,7 @@ export default function ProgressPage() {
           </div>
         )}
 
-        {!isLoading && !errMessage && (
+        {!busy && !errMessage && (
           <ol className="grid gap-3">
             {checkpoints.map((cp, i) => {
               const done = scanned.has(cp.id)
@@ -126,8 +128,7 @@ export default function ProgressPage() {
                   className={cn(
                     "grid grid-cols-[28px_1fr_auto] items-start gap-3 rounded-xl border p-3.5 transition-colors",
                     done && "border-border bg-card/30",
-                    current &&
-                      "border-primary/40 bg-primary/8 shadow-[0_0_24px_-8px_oklch(73%_0.17_296_/_0.4)]",
+                    current && "border-primary/40 bg-primary/8",
                     !done && !current && "border-border/40 bg-transparent"
                   )}
                 >
@@ -152,9 +153,9 @@ export default function ProgressPage() {
                       {cp.name}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {cp.sponsor} · {cp.area}
+                      {[cp.sponsor, cp.area].filter(Boolean).join(" · ")}
                     </p>
-                    {current && (
+                    {current && cp.clue && (
                       <p className="mt-2 text-xs leading-relaxed text-primary/80">
                         {cp.clue}
                       </p>
@@ -169,27 +170,17 @@ export default function ProgressPage() {
           </ol>
         )}
 
-        {!isLoading && !errMessage && progress && (
+        {!busy && !errMessage && progress && (
           <div className="grid gap-2">
             {finished ? (
-              <Link
-                href="/play/claim"
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-fuchsia-400 text-sm font-medium text-primary-foreground transition-transform hover:-translate-y-px"
-              >
-                Mint your finisher badge
-              </Link>
+              <PlayCta href="/play/claim">Mint your finisher badge</PlayCta>
             ) : (
-              <Link
-                href="/play/scan"
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-fuchsia-400 text-sm font-medium text-primary-foreground transition-transform hover:-translate-y-px"
-              >
-                Continue to next checkpoint
-              </Link>
+              <PlayCta href="/play/scan">Continue to next checkpoint</PlayCta>
             )}
             <button
               type="button"
               onClick={() => refetch()}
-              className="text-center text-xs text-muted-foreground/70 underline-offset-4 hover:text-foreground hover:underline"
+              className="py-2 text-center text-xs text-muted-foreground/70 underline-offset-4 hover:text-foreground hover:underline"
             >
               Refresh progress
             </button>

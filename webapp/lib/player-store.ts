@@ -8,6 +8,7 @@ import {
   events,
   players,
   scans,
+  sponsors,
 } from "@/db/schema"
 
 /**
@@ -55,6 +56,61 @@ export async function currentEventId(): Promise<string> {
     )
   }
   return rows[0].id
+}
+
+export interface PublicCheckpoint {
+  id: string
+  name: string
+  area: string | null
+  sponsor: string | null
+  clue: string | null
+  clueType: "scan" | "staff" | "pair" | "nfc"
+  orderIndex: number
+}
+
+export interface PublicEventInfo {
+  name: string
+  venue: string | null
+  network: string
+  checkpoints: PublicCheckpoint[]
+}
+
+/**
+ * The event sheet the attendee surface renders: name, network, and the
+ * ordered checkpoint list with clues. Never includes TOTP secrets.
+ */
+export async function getPublicEvent(
+  eventId: string
+): Promise<PublicEventInfo | null> {
+  const [event] = await storeDb
+    .select({
+      name: events.name,
+      venue: events.venue,
+      network: events.network,
+    })
+    .from(events)
+    .where(and(eq(events.id, eventId), isNull(events.archivedAt)))
+    .limit(1)
+  if (!event) return null
+
+  const rows = await storeDb
+    .select({
+      id: checkpoints.id,
+      name: checkpoints.name,
+      area: checkpoints.area,
+      sponsor: sponsors.name,
+      clue: checkpoints.clue,
+      clueType: checkpoints.clueType,
+      orderIndex: checkpoints.orderIndex,
+    })
+    .from(checkpoints)
+    .leftJoin(sponsors, eq(sponsors.id, checkpoints.sponsorId))
+    .where(
+      and(eq(checkpoints.eventId, eventId), isNull(checkpoints.archivedAt))
+    )
+    .orderBy(checkpoints.orderIndex)
+
+  return { ...event, checkpoints: rows }
 }
 
 export interface PublicProgress {

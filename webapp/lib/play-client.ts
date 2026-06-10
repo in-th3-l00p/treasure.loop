@@ -71,6 +71,46 @@ export async function logout(): Promise<{ ok: true }> {
   return jsonFetch("/api/play/auth/logout", { method: "POST" })
 }
 
+// ─────────────────── Event sheet ───────────────────
+
+export interface PlayCheckpoint {
+  id: string
+  name: string
+  area: string | null
+  sponsor: string | null
+  clue: string | null
+  clueType: "scan" | "staff" | "pair" | "nfc"
+  orderIndex: number
+}
+
+export interface PlayEvent {
+  name: string
+  venue: string | null
+  network: string
+  checkpoints: PlayCheckpoint[]
+}
+
+export async function getPlayEvent(): Promise<{ event: PlayEvent }> {
+  return jsonFetch("/api/play/event")
+}
+
+/** Block-explorer link for a confirmed tx, by event network. */
+export function explorerTxUrl(network: string, txHash: string): string {
+  const base =
+    network === "base"
+      ? "https://basescan.org"
+      : "https://sepolia.basescan.org"
+  return `${base}/tx/${txHash}`
+}
+
+/** "base-sepolia" → "Base Sepolia" for footers and badges. */
+export function networkLabel(network: string): string {
+  return network
+    .split("-")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ")
+}
+
 // ─────────────────── Game state ───────────────────
 
 export async function getProgress(): Promise<{

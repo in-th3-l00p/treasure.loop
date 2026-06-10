@@ -4,11 +4,7 @@ import Link from "next/link"
 import { useCallback, useState } from "react"
 import { ConnectButton } from "@rainbow-me/rainbowkit"
 import { type Hex } from "viem"
-import {
-  useAccount,
-  usePublicClient,
-  useWriteContract,
-} from "wagmi"
+import { useAccount, usePublicClient, useWriteContract } from "wagmi"
 import {
   AlertTriangleIcon,
   ArrowLeftIcon,
@@ -20,11 +16,15 @@ import {
 } from "lucide-react"
 
 import { BADGE_ABI } from "@/lib/badge-contract"
+import { explorerTxUrl, networkLabel } from "@/lib/play-client"
 import {
   useConfirmMint,
+  usePlayEvent,
   useProgress,
   useRequestMintPermit,
 } from "@/lib/play-hooks"
+
+import { PlayCta } from "../_components/play-cta"
 
 type MintState =
   | "idle"
@@ -41,6 +41,7 @@ export default function ClaimPage() {
   const { isConnected, address } = useAccount()
   const { data: progress, isLoading: loadingProgress, error: progressError } =
     useProgress()
+  const { data: playEvent } = usePlayEvent()
   const requestPermit = useRequestMintPermit()
   const confirmMint = useConfirmMint()
 
@@ -54,12 +55,15 @@ export default function ClaimPage() {
   const [state, setState] = useState<MintState>("idle")
   const [error, setError] = useState<string | null>(null)
 
+  const eventTitle = playEvent?.name.split(":")[0] ?? "TreasureLoop"
+  const network = playEvent?.network ?? "base-sepolia"
+
   const shortAddress = address
     ? `${address.slice(0, 6)}…${address.slice(-4)}`
     : null
 
   // Reset to a state derived from current progress on every render —
-  // no effect, no flicker. Effects below only handle async transitions.
+  // no effect, no flicker. Async transitions below override it.
   const derivedState: MintState = (() => {
     if (progressError) return "error"
     if (loadingProgress) return "idle"
@@ -124,20 +128,14 @@ export default function ClaimPage() {
       setState("error")
       resetWrite()
     }
-  }, [
-    requestPermit,
-    writeContractAsync,
-    publicClient,
-    confirmMint,
-    resetWrite,
-  ])
+  }, [requestPermit, writeContractAsync, publicClient, confirmMint, resetWrite])
 
   const minted = effective === "done"
 
   return (
-    <main className="play-claim relative min-h-screen overflow-hidden">
+    <main className="relative min-h-screen overflow-hidden">
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute top-0 left-1/2 size-[40rem] -translate-x-1/2 rounded-full bg-[conic-gradient(from_180deg_at_50%_50%,oklch(73%_0.17_296_/_0.35),oklch(72%_0.18_320_/_0.25),oklch(73%_0.17_296_/_0.35))] blur-2xl" />
+        <div className="absolute top-0 left-1/2 size-[36rem] -translate-x-1/2 rounded-full bg-[radial-gradient(circle,oklch(73%_0.17_296_/_0.25),transparent_60%)] blur-2xl" />
       </div>
 
       <header className="relative mx-auto flex w-full max-w-md items-center justify-between px-5 pt-6">
@@ -154,9 +152,9 @@ export default function ClaimPage() {
       <div className="relative mx-auto grid w-full max-w-md gap-7 px-5 pt-10 pb-12">
         <div className="grid gap-3 text-center">
           <p className="font-mono text-[11px] tracking-[0.18em] text-primary uppercase">
-            ETH Cluj 2026
+            {eventTitle}
           </p>
-          <h1 className="font-heading text-[40px] leading-tight font-medium tracking-tight">
+          <h1 className="text-[38px] leading-tight font-medium tracking-tight">
             {minted
               ? "Badge minted."
               : effective === "ineligible"
@@ -167,12 +165,16 @@ export default function ClaimPage() {
             {minted
               ? "Show this badge at the prize desk to claim your reward."
               : effective === "ineligible"
-                ? `Scan ${(progress?.total ?? 5) - (progress?.scanned.length ?? 0)} more checkpoint(s) before you can mint.`
+                ? `Scan ${(progress?.total ?? 0) - (progress?.scanned.length ?? 0)} more checkpoint(s) before you can mint.`
                 : "Mint your finisher badge and show it at the prize desk to unlock your rewards."}
           </p>
         </div>
 
-        <Badge minted={minted} />
+        <Badge
+          minted={minted}
+          eventTitle={eventTitle}
+          networkName={networkLabel(network)}
+        />
 
         <div className="grid gap-2">
           <ConnectButton.Custom>
@@ -180,41 +182,27 @@ export default function ClaimPage() {
               const connected = mounted && !!account && !!chain
               if (!mounted) {
                 return (
-                  <div className="h-12 rounded-xl bg-gradient-to-r from-primary to-fuchsia-400 opacity-60" />
+                  <div className="h-12 rounded-xl bg-primary opacity-50" />
                 )
               }
               if (!connected) {
                 return (
-                  <button
-                    type="button"
-                    onClick={openConnectModal}
-                    className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-fuchsia-400 text-[15px] font-medium text-primary-foreground transition-transform hover:-translate-y-px"
-                  >
+                  <PlayCta onClick={openConnectModal}>
                     <WalletIcon className="size-4" />
                     Connect wallet to mint
-                  </button>
+                  </PlayCta>
                 )
               }
               if (effective === "done") {
                 return (
-                  <Link
-                    href="/play/progress"
-                    className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-fuchsia-400 text-[15px] font-medium text-primary-foreground transition-transform hover:-translate-y-px"
-                  >
+                  <PlayCta href="/play/progress">
                     <CheckCircle2Icon className="size-4" />
                     Continue
-                  </Link>
+                  </PlayCta>
                 )
               }
               if (effective === "ineligible") {
-                return (
-                  <Link
-                    href="/play/scan"
-                    className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-fuchsia-400 text-[15px] font-medium text-primary-foreground transition-transform hover:-translate-y-px"
-                  >
-                    Keep playing
-                  </Link>
-                )
+                return <PlayCta href="/play/scan">Keep playing</PlayCta>
               }
               const busy =
                 effective === "requesting-permit" ||
@@ -222,12 +210,7 @@ export default function ClaimPage() {
                 effective === "confirming" ||
                 effective === "recording"
               return (
-                <button
-                  type="button"
-                  onClick={mint}
-                  disabled={busy}
-                  className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-fuchsia-400 text-[15px] font-medium text-primary-foreground transition-transform hover:-translate-y-px disabled:opacity-70"
-                >
+                <PlayCta onClick={mint} disabled={busy}>
                   {busy ? (
                     <>
                       <Loader2Icon className="size-4 animate-spin" />
@@ -239,7 +222,7 @@ export default function ClaimPage() {
                       Mint finisher badge
                     </>
                   )}
-                </button>
+                </PlayCta>
               )
             }}
           </ConnectButton.Custom>
@@ -262,7 +245,7 @@ export default function ClaimPage() {
             <p className="text-center text-[11px] text-muted-foreground">
               Confirmed on chain ·{" "}
               <a
-                href={`https://sepolia.basescan.org/tx/${txHash}`}
+                href={explorerTxUrl(network, txHash)}
                 className="text-primary underline-offset-4 hover:underline"
                 target="_blank"
                 rel="noopener"
@@ -281,9 +264,8 @@ export default function ClaimPage() {
             <div>
               <p className="text-sm font-medium">Then visit the prize desk</p>
               <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-                Main hall exit · open until 18:00. Staff verify your badge
-                on-chain and hand out the physical reward tier you&apos;ve
-                earned.
+                Staff verify your badge on-chain and hand out the physical
+                reward tier you&apos;ve earned.
               </p>
             </div>
           </div>
@@ -293,27 +275,35 @@ export default function ClaimPage() {
   )
 }
 
-function Badge({ minted }: { minted: boolean }) {
+function Badge({
+  minted,
+  eventTitle,
+  networkName,
+}: {
+  minted: boolean
+  eventTitle: string
+  networkName: string
+}) {
   return (
-    <div className="relative grid place-items-center rounded-3xl border border-primary/40 bg-gradient-to-b from-primary/10 to-fuchsia-400/5 p-8">
-      <div className="absolute inset-0 rounded-3xl bg-[radial-gradient(circle_at_50%_30%,oklch(73%_0.17_296_/_0.2),transparent_60%)]" />
+    <div className="relative grid place-items-center rounded-3xl border border-primary/40 bg-primary/5 p-8">
+      <div className="absolute inset-0 rounded-3xl bg-[radial-gradient(circle_at_50%_30%,oklch(73%_0.17_296_/_0.16),transparent_60%)]" />
       <div className="relative grid gap-5 text-center">
         <div className="relative mx-auto grid size-28 place-items-center">
-          <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary via-fuchsia-400 to-primary opacity-70 blur-xl" />
-          <div className="relative grid size-24 place-items-center rounded-full border border-primary/50 bg-gradient-to-br from-primary/80 to-fuchsia-400/80 shadow-[0_20px_40px_-12px_oklch(73%_0.17_296_/_0.6)]">
+          <div className="absolute inset-0 rounded-full bg-primary/50 opacity-60 blur-xl" />
+          <div className="relative grid size-24 place-items-center rounded-full border border-primary/50 bg-primary/80 shadow-[0_20px_40px_-12px_oklch(73%_0.17_296_/_0.6)]">
             {minted ? (
-              <CheckCircle2Icon className="size-9 text-white" />
+              <CheckCircle2Icon className="size-9 text-primary-foreground" />
             ) : (
-              <SparklesIcon className="size-9 text-white" />
+              <SparklesIcon className="size-9 text-primary-foreground" />
             )}
           </div>
         </div>
         <div className="grid gap-1">
-          <p className="font-heading text-xl font-medium tracking-tight">
-            Cluj Loop Finisher
+          <p className="text-xl font-medium tracking-tight">
+            {eventTitle} Finisher
           </p>
           <p className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
-            Edition of 142 · Base Sepolia
+            On-chain badge · {networkName}
           </p>
         </div>
       </div>

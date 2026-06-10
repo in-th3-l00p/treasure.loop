@@ -14,14 +14,16 @@ import {
   TrophyIcon,
 } from "lucide-react"
 
-import { event } from "@/lib/mock-data"
+import { networkLabel } from "@/lib/play-client"
 import {
   useLogout,
+  usePlayEvent,
   useRequestNonce,
   useSession,
   useVerifySiwe,
 } from "@/lib/play-hooks"
-import { cn } from "@/lib/utils"
+
+import { PlayCta } from "./_components/play-cta"
 
 const benefits = [
   {
@@ -48,12 +50,16 @@ export default function PlayLanding() {
   const { address, chainId, isConnected } = useAccount()
   const { signMessageAsync } = useSignMessage()
   const session = useSession()
+  const { data: playEvent } = usePlayEvent()
   const requestNonce = useRequestNonce()
   const verifySiwe = useVerifySiwe()
   const logout = useLogout()
 
   const [signState, setSignState] = useState<SignState>("idle")
   const [error, setError] = useState<string | null>(null)
+
+  const eventTitle = playEvent?.name.split(":")[0] ?? "TreasureLoop"
+  const checkpointCount = playEvent?.checkpoints.length ?? null
 
   // Detect wallet ↔ session mismatch in render (no useEffect).
   const sessionAddress = session.data?.address ?? null
@@ -103,18 +109,16 @@ export default function PlayLanding() {
       await verifySiwe.mutateAsync({ message: prepared, signature })
       router.push("/play/scan")
     } catch (e) {
-      const msg =
-        e instanceof Error ? e.message : "Sign-in failed. Try again."
+      const msg = e instanceof Error ? e.message : "Sign-in failed. Try again."
       setError(msg)
       setSignState("idle")
     }
   }, [address, chainId, requestNonce, signMessageAsync, verifySiwe, router])
 
   return (
-    <main className="play-landing relative min-h-screen overflow-hidden">
+    <main className="relative min-h-screen overflow-hidden">
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -top-32 -left-24 size-[40rem] rounded-full bg-[radial-gradient(circle,oklch(73%_0.17_296_/_0.35),transparent_60%)] blur-2xl" />
-        <div className="absolute -right-32 -bottom-24 size-[40rem] rounded-full bg-[radial-gradient(circle,oklch(72%_0.18_320_/_0.28),transparent_60%)] blur-2xl" />
+        <div className="absolute -top-32 -left-24 size-[40rem] rounded-full bg-[radial-gradient(circle,oklch(73%_0.17_296_/_0.3),transparent_60%)] blur-2xl" />
       </div>
 
       <header className="relative mx-auto flex w-full max-w-md items-center justify-between px-5 pt-6">
@@ -127,7 +131,7 @@ export default function PlayLanding() {
           </span>
         </Link>
         <span className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
-          {event.name.split(":")[0]}
+          {eventTitle}
         </span>
       </header>
 
@@ -135,7 +139,7 @@ export default function PlayLanding() {
         <div className="grid gap-7">
           <div className="grid gap-3">
             <p className="font-mono text-[11px] tracking-[0.18em] text-primary uppercase">
-              {event.name.split(":")[0]}
+              {eventTitle}
             </p>
             <h1 className="font-heading text-[44px] leading-[0.95] font-medium tracking-tight">
               Hunt the floor,
@@ -143,9 +147,9 @@ export default function PlayLanding() {
               mint the loop.
             </h1>
             <p className="max-w-sm text-[15px] leading-relaxed text-muted-foreground">
-              Connect your wallet, scan the opening marker, and chase the
-              clue between staffed sponsor checkpoints. Closing the loop
-              mints your finisher badge.
+              Connect your wallet, scan the opening marker, and chase the clue
+              between staffed sponsor checkpoints. Closing the loop mints your
+              finisher badge.
             </p>
           </div>
 
@@ -177,65 +181,47 @@ export default function PlayLanding() {
                 return (
                   <div
                     aria-hidden
-                    className="h-12 w-full rounded-xl bg-gradient-to-r from-primary via-primary to-fuchsia-400 opacity-60"
+                    className="h-12 w-full rounded-xl bg-primary opacity-50"
                   />
                 )
               }
               if (!connected) {
                 return (
-                  <button
-                    type="button"
-                    onClick={openConnectModal}
-                    className="group relative inline-flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-primary via-primary to-fuchsia-400 text-[15px] font-medium text-primary-foreground shadow-[0_12px_32px_-8px_oklch(56%_0.18_286_/_0.5)] transition-transform hover:-translate-y-px"
-                  >
+                  <PlayCta onClick={openConnectModal}>
                     Connect wallet to play
-                    <ArrowRightIcon className="size-4 transition-transform group-hover:translate-x-0.5" />
-                  </button>
+                    <ArrowRightIcon className="size-4" />
+                  </PlayCta>
                 )
               }
               if (sessionMatches) {
                 return (
-                  <Link
-                    href="/play/scan"
-                    className="group relative inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary via-primary to-fuchsia-400 text-[15px] font-medium text-primary-foreground shadow-[0_12px_32px_-8px_oklch(56%_0.18_286_/_0.5)] transition-transform hover:-translate-y-px"
-                  >
+                  <PlayCta href="/play/scan">
                     <CheckCircle2Icon className="size-4" />
                     Start the hunt
-                    <ArrowRightIcon className="size-4 transition-transform group-hover:translate-x-0.5" />
-                  </Link>
+                    <ArrowRightIcon className="size-4" />
+                  </PlayCta>
                 )
               }
               return (
-                <button
-                  type="button"
-                  onClick={runSiwe}
-                  disabled={signState !== "idle"}
-                  className={cn(
-                    "group relative inline-flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-primary via-primary to-fuchsia-400 text-[15px] font-medium text-primary-foreground shadow-[0_12px_32px_-8px_oklch(56%_0.18_286_/_0.5)] transition-transform hover:-translate-y-px",
-                    signState !== "idle" && "opacity-90"
-                  )}
-                >
-                  {signState === "idle" && (
+                <PlayCta onClick={runSiwe} disabled={signState !== "idle"}>
+                  {signState === "idle" ? (
                     <>
                       Sign in with your wallet
-                      <ArrowRightIcon className="size-4 transition-transform group-hover:translate-x-0.5" />
+                      <ArrowRightIcon className="size-4" />
                     </>
-                  )}
-                  {signState !== "idle" && (
+                  ) : (
                     <>
                       <Loader2Icon className="size-4 animate-spin" />
                       {labelFor(signState)}
                     </>
                   )}
-                </button>
+                </PlayCta>
               )
             }}
           </ConnectButton.Custom>
 
           {error && (
-            <p className="text-center text-[11px] text-rose-300/90">
-              {error}
-            </p>
+            <p className="text-center text-[11px] text-rose-300/90">{error}</p>
           )}
 
           <p className="text-center text-[11px] text-muted-foreground">
@@ -243,11 +229,19 @@ export default function PlayLanding() {
           </p>
 
           <div className="flex items-center justify-center gap-4 pt-3 font-mono text-[10px] tracking-[0.14em] text-muted-foreground/60 uppercase">
-            <span>{event.walletNetwork}</span>
-            <span className="size-0.5 rounded-full bg-muted-foreground/40" />
-            <span>5 checkpoints</span>
-            <span className="size-0.5 rounded-full bg-muted-foreground/40" />
-            <span>~45 min</span>
+            {playEvent && <span>{networkLabel(playEvent.network)}</span>}
+            {checkpointCount !== null && (
+              <>
+                <span className="size-0.5 rounded-full bg-muted-foreground/40" />
+                <span>{checkpointCount} checkpoints</span>
+              </>
+            )}
+            {playEvent?.venue && (
+              <>
+                <span className="size-0.5 rounded-full bg-muted-foreground/40" />
+                <span>{playEvent.venue}</span>
+              </>
+            )}
           </div>
         </div>
       </div>

@@ -6,6 +6,7 @@ import {
   type MintPermitResponse,
   type PublicProgress,
   confirmMint,
+  getPlayEvent,
   getProgress,
   getSession,
   logout,
@@ -23,6 +24,17 @@ import {
 export const playKeys = {
   session: ["play", "session"] as const,
   progress: ["play", "progress"] as const,
+  event: ["play", "event"] as const,
+}
+
+/** The public event sheet: name, network, ordered checkpoints. */
+export function usePlayEvent() {
+  return useQuery({
+    queryKey: playKeys.event,
+    queryFn: async () => (await getPlayEvent()).event,
+    staleTime: 5 * 60_000,
+    retry: 1,
+  })
 }
 
 export function useSession() {
