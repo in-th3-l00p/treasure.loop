@@ -69,6 +69,8 @@ export const staffAlertStatus = pgEnum("staff_alert_status", [
   "acknowledged",
 ])
 
+export const fragmentKind = pgEnum("fragment_kind", ["A", "B"])
+
 // ───────────────────────────── events ─────────────────────────────
 
 export const events = pgTable(
@@ -291,6 +293,63 @@ export const scans = pgTable(
   ]
 )
 
+// ───────────────────────────── fragments ───────────────────────────
+//
+// Pair-fragment flow (ROADMAP Phase 7). A checkpoint with
+// `clue_type = 'pair'` issues TWO complementary fragment kinds — A or B —
+// alternating between players. A player who scans a pair checkpoint
+// receives ONE fragment with a short, human-readable code; they must
+// find a player holding the opposite kind and combine. Combining grants
+// the checkpoint to BOTH wallets.
+//
+// A player gets at most one fragment per pair checkpoint (unique on
+// player+checkpoint), so re-scanning is idempotent and returns the same
+// fragment. `paired_with_player_id` / `paired_at` are null until the
+// fragment is combined with its complement.
+
+export const fragments = pgTable(
+  "fragments",
+  {
+    id: text("id").primaryKey().default(shortId("frg")),
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    playerId: text("player_id")
+      .notNull()
+      .references(() => players.id, { onDelete: "cascade" }),
+    checkpointId: text("checkpoint_id")
+      .notNull()
+      .references(() => checkpoints.id, { onDelete: "cascade" }),
+    fragmentKind: fragmentKind("fragment_kind").notNull(),
+    /** 5 chars from a 32-symbol unambiguous alphabet (no 0/O/1/I/L). */
+    shortCode: varchar("short_code", { length: 5 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    pairedWithPlayerId: text("paired_with_player_id").references(
+      () => players.id,
+      { onDelete: "set null" }
+    ),
+    pairedAt: timestamp("paired_at", { withTimezone: true }),
+  },
+  (t) => [
+    // One fragment per player per pair checkpoint — re-scan is idempotent.
+    uniqueIndex("fragments_player_checkpoint_idx").on(
+      t.playerId,
+      t.checkpointId
+    ),
+    // The entered code resolves a fragment within an event; codes are
+    // unique per (event, checkpoint, code) so a lookup is unambiguous.
+    uniqueIndex("fragments_event_checkpoint_code_idx").on(
+      t.eventId,
+      t.checkpointId,
+      t.shortCode
+    ),
+    // Balancing counts the outstanding A/B per checkpoint on issuance.
+    index("fragments_checkpoint_kind_idx").on(t.checkpointId, t.fragmentKind),
+  ]
+)
+
 // ────────────────────────── badge mints ──────────────────────────
 
 export const badgeMints = pgTable(
@@ -463,6 +522,8 @@ export type Sponsor = typeof sponsors.$inferSelect
 export type Checkpoint = typeof checkpoints.$inferSelect
 export type Player = typeof players.$inferSelect
 export type Scan = typeof scans.$inferSelect
+export type Fragment = typeof fragments.$inferSelect
+export type NewFragment = typeof fragments.$inferInsert
 export type BadgeMint = typeof badgeMints.$inferSelect
 export type RedemptionClaim = typeof redemptionClaims.$inferSelect
 export type Reward = typeof rewards.$inferSelect

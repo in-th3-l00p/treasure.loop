@@ -137,6 +137,27 @@ export async function getProgress(): Promise<{
   return jsonFetch("/api/play/progress")
 }
 
+/** A fragment handed out at a `pair` checkpoint. */
+export interface IssuedFragment {
+  kind: "A" | "B"
+  shortCode: string
+}
+
+/** The player's current pair fragment, as the /play/pair screen reads it. */
+export interface PlayerFragment {
+  checkpointId: string
+  checkpointName: string
+  kind: "A" | "B"
+  shortCode: string
+  paired: boolean
+  pairedAt: number | null
+}
+
+/**
+ * Record a scan. A normal checkpoint returns `{ progress }`. A `pair`
+ * checkpoint doesn't complete on scan — it returns `{ fragment }`, and the
+ * player is sent to /play/pair to combine it with another player.
+ */
 export async function recordScan(args: {
   checkpointId: string
   /** Manual TOTP code; optional when a signed URL token is supplied. */
@@ -145,10 +166,40 @@ export async function recordScan(args: {
   t?: string
   /** Opt-in to share this wallet with the booth's sponsor. Default off. */
   shareLead?: boolean
-}): Promise<{ progress: PublicProgress }> {
+}): Promise<{ progress?: PublicProgress; fragment?: IssuedFragment }> {
   return jsonFetch("/api/play/scan", {
     method: "POST",
     body: JSON.stringify(args),
+  })
+}
+
+// ─────────────────── Pair fragments ───────────────────
+
+/** The player's current fragment to act on, or null if they have none. */
+export async function getActiveFragment(): Promise<{
+  fragment: PlayerFragment | null
+}> {
+  return jsonFetch("/api/play/pair")
+}
+
+/** Combine the player's fragment with the one identified by `code`. */
+export async function combineFragments(args: {
+  code: string
+}): Promise<{ ok: true; checkpointId: string; checkpointName: string }> {
+  return jsonFetch("/api/play/pair", {
+    method: "POST",
+    body: JSON.stringify({ action: "combine", ...args }),
+  })
+}
+
+/** Flag a suspected cheating pair for human review at the prize desk. */
+export async function reportPairCheating(args: {
+  code?: string
+  note?: string
+}): Promise<{ ok: true }> {
+  return jsonFetch("/api/play/pair", {
+    method: "POST",
+    body: JSON.stringify({ action: "report", ...args }),
   })
 }
 

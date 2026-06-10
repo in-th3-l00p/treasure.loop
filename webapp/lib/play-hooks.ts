@@ -11,14 +11,18 @@ import {
   BADGE_CONTRACT_CONFIGURED,
 } from "./badge-contract"
 import {
+  type IssuedFragment,
   type MintPermitResponse,
   type PublicProgress,
+  combineFragments,
   confirmMint,
+  getActiveFragment,
   getPlayEvent,
   getProgress,
   getSession,
   logout,
   recordScan,
+  reportPairCheating,
   requestMintPermit,
   requestNonce,
   verifySiwe,
@@ -33,6 +37,7 @@ export const playKeys = {
   session: ["play", "session"] as const,
   progress: ["play", "progress"] as const,
   event: ["play", "event"] as const,
+  fragment: ["play", "fragment"] as const,
 }
 
 /** The public event sheet: name, network, ordered checkpoints. */
@@ -94,10 +99,41 @@ export function useRecordScan() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: recordScan,
-    onSuccess: (data: { progress: PublicProgress }) => {
-      qc.setQueryData(playKeys.progress, data.progress)
+    onSuccess: (data: {
+      progress?: PublicProgress
+      fragment?: IssuedFragment
+    }) => {
+      // A pair checkpoint returns a fragment, not progress; refresh the
+      // fragment query instead of writing progress.
+      if (data.progress) qc.setQueryData(playKeys.progress, data.progress)
+      if (data.fragment) qc.invalidateQueries({ queryKey: playKeys.fragment })
     },
   })
+}
+
+/** The player's current pair fragment, if any. */
+export function useActiveFragment() {
+  return useQuery({
+    queryKey: playKeys.fragment,
+    queryFn: async () => (await getActiveFragment()).fragment,
+    retry: false,
+    refetchOnWindowFocus: true,
+  })
+}
+
+export function useCombineFragments() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: combineFragments,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: playKeys.fragment })
+      qc.invalidateQueries({ queryKey: playKeys.progress })
+    },
+  })
+}
+
+export function useReportPairCheating() {
+  return useMutation({ mutationFn: reportPairCheating })
 }
 
 export function useRequestMintPermit() {

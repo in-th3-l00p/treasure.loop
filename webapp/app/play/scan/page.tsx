@@ -68,11 +68,17 @@ function ScanPageInner() {
         // Only meaningful at a sponsor booth; harmless otherwise.
         shareLead: Boolean(next.sponsor) && shareLead,
       })
-      finishScan(data.progress.finished)
+      // A pair checkpoint hands back a fragment instead of progress —
+      // send the player to the combine screen.
+      if (data.fragment) {
+        router.push("/play/pair")
+        return
+      }
+      finishScan(Boolean(data.progress?.finished))
     } catch (e) {
       onScanError(e)
     }
-  }, [next, code, shareLead, scan, finishScan, onScanError])
+  }, [next, code, shareLead, scan, finishScan, onScanError, router])
 
   // Tap-to-scan: a signed `?cp=&t=` URL submits the token automatically
   // for the matching unscanned checkpoint, skipping manual code entry.
@@ -86,9 +92,15 @@ function ScanPageInner() {
     tokenSubmitted.current = true
     scan
       .mutateAsync({ checkpointId: urlCheckpointId, t: urlToken })
-      .then((data) => finishScan(data.progress.finished))
+      .then((data) => {
+        if (data.fragment) {
+          router.push("/play/pair")
+          return
+        }
+        finishScan(Boolean(data.progress?.finished))
+      })
       .catch(onScanError)
-  }, [urlCheckpointId, urlToken, progress, next, scan, finishScan, onScanError])
+  }, [urlCheckpointId, urlToken, progress, next, scan, finishScan, onScanError, router])
 
   if (isLoading || loadingEvent) {
     return (

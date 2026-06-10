@@ -9,7 +9,9 @@ import { increment, Metric } from "@/lib/metrics"
 import { getPlayAddress } from "@/lib/play-session"
 import {
   currentEventId,
+  getCheckpointClueType,
   isCheckpointOffline,
+  issueFragment,
   isValidCheckpoint,
   recordScan,
 } from "@/lib/player-store"
@@ -214,6 +216,24 @@ export const POST = withRouteLogging(
       })
       return NextResponse.json({ error: "invalid-code" }, { status: 401 })
     }
+  }
+
+  // Pair checkpoints don't complete on scan — they hand the player a
+  // fragment to combine with another player. Presence is already proven
+  // (TOTP/token verified above); issue (or return the existing) fragment
+  // and point the player at /play/pair instead of recording a scan.
+  if ((await getCheckpointClueType(eventId, body.checkpointId)) === "pair") {
+    const fragment = await issueFragment({
+      eventId,
+      wallet: address,
+      checkpointId: body.checkpointId,
+    })
+    if (!fragment) {
+      increment(Metric.Scan, { outcome: "rejected", reason: "scan-rejected" })
+      return NextResponse.json({ error: "scan-rejected" }, { status: 400 })
+    }
+    increment(Metric.Scan, { outcome: "fragment" })
+    return NextResponse.json({ fragment })
   }
 
   const progress = await recordScan({
