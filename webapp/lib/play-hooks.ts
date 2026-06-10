@@ -17,6 +17,7 @@ import {
   combineFragments,
   confirmMint,
   getActiveFragment,
+  mockMintBadge,
   getPlayEvent,
   getProgress,
   getSession,
@@ -144,6 +145,15 @@ export function useConfirmMint() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: confirmMint,
+    onSuccess: () => qc.invalidateQueries({ queryKey: playKeys.progress }),
+  })
+}
+
+/** PoC mock mint — records a synthetic badge, no wallet tx. Dev only. */
+export function useMockMint() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: mockMintBadge,
     onSuccess: () => qc.invalidateQueries({ queryKey: playKeys.progress }),
   })
 }

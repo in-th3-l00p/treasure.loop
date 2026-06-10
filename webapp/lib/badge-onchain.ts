@@ -1,12 +1,16 @@
 import "server-only"
 
-import { type Address, createPublicClient, http } from "viem"
+import { type Address, createPublicClient, getAddress, http } from "viem"
+import { eq } from "drizzle-orm"
 
+import { db } from "@/db/client"
+import { badgeMints, players } from "@/db/schema"
 import {
   BADGE_ABI,
   BADGE_CHAIN,
   BADGE_CONTRACT_ADDRESS,
   BADGE_CONTRACT_CONFIGURED,
+  MOCK_CHAIN,
 } from "./badge-contract"
 
 /**
@@ -34,6 +38,25 @@ export interface OnchainBadgeStatus {
 export async function checkOnchainBadge(
   wallet: Address
 ): Promise<OnchainBadgeStatus> {
+  // PoC mock-chain: badge ownership comes from the recorded mints in the
+  // database instead of an RPC read, so the prize desk works end-to-end
+  // without a deployed contract.
+  if (MOCK_CHAIN) {
+    const rows = await db
+      .select({ id: badgeMints.id })
+      .from(badgeMints)
+      .innerJoin(players, eq(players.id, badgeMints.playerId))
+      .where(eq(players.wallet, getAddress(wallet)))
+      .limit(1)
+    const holds = rows.length > 0
+    return {
+      configured: true,
+      balance: holds ? BigInt(1) : BigInt(0),
+      hasMintedFlag: holds,
+      holdsBadge: holds,
+    }
+  }
+
   if (!BADGE_CONTRACT_CONFIGURED) {
     return {
       configured: false,

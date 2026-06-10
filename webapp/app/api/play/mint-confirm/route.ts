@@ -1,6 +1,9 @@
+import { randomBytes } from "node:crypto"
+
 import { NextResponse } from "next/server"
 import { type Hash, isHash } from "viem"
 
+import { MOCK_CHAIN } from "@/lib/badge-contract"
 import { withRouteLogging, type RouteContext } from "@/lib/logger"
 import { increment, Metric } from "@/lib/metrics"
 import { getPlayAddress } from "@/lib/play-session"
@@ -18,14 +21,30 @@ export const POST = withRouteLogging(
   }
   ctx.set({ actor: address })
 
-  let body: { txHash?: string; tokenId?: number }
+  let body: { txHash?: string; tokenId?: number; mock?: boolean }
   try {
-    body = (await req.json()) as { txHash?: string; tokenId?: number }
+    body = (await req.json()) as {
+      txHash?: string
+      tokenId?: number
+      mock?: boolean
+    }
   } catch {
     return NextResponse.json({ error: "invalid-json" }, { status: 400 })
   }
 
-  if (!body.txHash || !isHash(body.txHash as Hash)) {
+  // PoC mock-chain mode: synthesize a believable receipt with no real
+  // transaction. recordBadgeMint still enforces finished + not-rehearsal,
+  // so this only fakes the chain, not the eligibility rules.
+  let txHash = body.txHash
+  let tokenId = body.tokenId
+  if (MOCK_CHAIN) {
+    if (!txHash || !isHash(txHash as Hash)) {
+      txHash = `0x${randomBytes(32).toString("hex")}`
+    }
+    if (tokenId === undefined) {
+      tokenId = Number(BigInt(txHash.slice(0, 10)) % BigInt(1_000_000))
+    }
+  } else if (!txHash || !isHash(txHash as Hash)) {
     return NextResponse.json({ error: "invalid-tx-hash" }, { status: 400 })
   }
 
@@ -33,8 +52,8 @@ export const POST = withRouteLogging(
   const progress = await recordBadgeMint({
     eventId,
     wallet: address,
-    txHash: body.txHash,
-    tokenId: body.tokenId,
+    txHash: txHash as string,
+    tokenId,
   })
   if (!progress) {
     increment(Metric.Mint, { outcome: "rejected", stage: "confirm" })
@@ -45,7 +64,8 @@ export const POST = withRouteLogging(
   return NextResponse.json({
     ok: true,
     badgeMintedAt: progress.badgeMintedAt,
-    txHash: body.txHash,
+    txHash,
+    tokenId: tokenId ?? null,
   })
   }
 )

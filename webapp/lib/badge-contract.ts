@@ -28,6 +28,17 @@ export const BADGE_CONTRACT_ADDRESS: Address =
 export const BADGE_CONTRACT_CONFIGURED =
   BADGE_CONTRACT_ADDRESS !== ZERO_ADDRESS
 
+/**
+ * PoC mock-chain mode (DEV ONLY). When `NEXT_PUBLIC_MOCK_CHAIN=1` and we
+ * are not in production, the app fakes the blockchain: the claim flow
+ * records a synthetic finisher badge with no real transaction, and the
+ * prize desk reads badge ownership from the database instead of an RPC.
+ * Hard-gated off in production so it can never weaken a live event.
+ */
+export const MOCK_CHAIN =
+  process.env.NEXT_PUBLIC_MOCK_CHAIN === "1" &&
+  process.env.NODE_ENV !== "production"
+
 /** Matches the EIP-712 typed-data domain inside the contract. */
 export const BADGE_EIP712_DOMAIN = {
   name: "TreasureLoop",

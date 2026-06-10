@@ -232,3 +232,20 @@ export async function confirmMint(args: {
     body: JSON.stringify(args),
   })
 }
+
+/**
+ * PoC mock mint: records a synthetic finisher badge with no wallet
+ * transaction (the server synthesizes the tx hash + token id). Only
+ * effective when the server is in MOCK_CHAIN dev mode.
+ */
+export async function mockMintBadge(): Promise<{
+  ok: boolean
+  badgeMintedAt: number
+  txHash: Hex
+  tokenId: number | null
+}> {
+  return jsonFetch("/api/play/mint-confirm", {
+    method: "POST",
+    body: JSON.stringify({ mock: true }),
+  })
+}

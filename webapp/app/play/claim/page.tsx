@@ -15,10 +15,11 @@ import {
   WalletIcon,
 } from "lucide-react"
 
-import { BADGE_ABI } from "@/lib/badge-contract"
+import { BADGE_ABI, MOCK_CHAIN } from "@/lib/badge-contract"
 import { explorerTxUrl, isAlreadyMinted, networkLabel } from "@/lib/play-client"
 import {
   useConfirmMint,
+  useMockMint,
   useOnchainBadgeHeld,
   usePlayEvent,
   useProgress,
@@ -47,6 +48,7 @@ export default function ClaimPage() {
   const { held: onchainHeld } = useOnchainBadgeHeld(address)
   const requestPermit = useRequestMintPermit()
   const confirmMint = useConfirmMint()
+  const mockMintMutation = useMockMint()
 
   const {
     writeContractAsync,
@@ -168,7 +170,30 @@ export default function ClaimPage() {
     }
   }, [requestPermit, writeContractAsync, publicClient, confirmMint, resetWrite])
 
+  // PoC mock mint: no wallet transaction — the server records a synthetic
+  // badge for the SIWE-authenticated wallet.
+  const mockMint = useCallback(async () => {
+    setError(null)
+    setTokenId(null)
+    setState("recording")
+    try {
+      const r = await mockMintMutation.mutateAsync()
+      if (r.tokenId != null) setTokenId(r.tokenId)
+      setState("done")
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "Mock mint failed. Try again."
+      )
+      setState("error")
+    }
+  }, [mockMintMutation])
+
   const minted = effective === "done"
+  const mintBusy =
+    effective === "requesting-permit" ||
+    effective === "awaiting-signature" ||
+    effective === "confirming" ||
+    effective === "recording"
 
   return (
     <main className="relative min-h-screen overflow-hidden">
@@ -233,6 +258,29 @@ export default function ClaimPage() {
                 Back to progress
               </PlayCta>
             </>
+          ) : MOCK_CHAIN ? (
+            effective === "done" ? (
+              <PlayCta href="/play/progress">
+                <CheckCircle2Icon className="size-4" />
+                Continue
+              </PlayCta>
+            ) : effective === "ineligible" ? (
+              <PlayCta href="/play/scan">Keep playing</PlayCta>
+            ) : (
+              <PlayCta onClick={mockMint} disabled={mintBusy}>
+                {mintBusy ? (
+                  <>
+                    <Loader2Icon className="size-4 animate-spin" />
+                    Finalizing…
+                  </>
+                ) : (
+                  <>
+                    <SparklesIcon className="size-4" />
+                    Mint finisher badge
+                  </>
+                )}
+              </PlayCta>
+            )
           ) : (
           <ConnectButton.Custom>
             {({ openConnectModal, account, chain, mounted }) => {

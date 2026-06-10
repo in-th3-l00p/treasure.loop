@@ -32,7 +32,11 @@ async function main() {
   const [event] = await db
     .insert(schema.events)
     .values({
-      orgId: "org_dev_seed",
+      // Set SEED_ORG_ID to your Clerk organization id so the operator
+      // console (which scopes events by org) shows this seeded event and
+      // doesn't auto-provision a second empty one. Defaults to a dev id
+      // that's fine for the attendee /play surface alone.
+      orgId: process.env.SEED_ORG_ID ?? "org_dev_seed",
       name: "ETH Cluj 2026: TreasureLoop Pilot",
       slug: "eth-cluj-2026",
       venue: "Cluj Innovation Hall",
