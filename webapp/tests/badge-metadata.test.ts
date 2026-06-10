@@ -34,4 +34,18 @@ describe("buildBadgeMetadata", () => {
       value: "Base Sepolia",
     })
   })
+
+  it("escapes XML-special characters in the event name", () => {
+    const hostile = buildBadgeMetadata({
+      tokenId: 1,
+      eventName: "Hack & Load <2026>",
+      networkName: "Base Sepolia",
+    })
+    const svg = Buffer.from(
+      hostile.image.replace("data:image/svg+xml;base64,", ""),
+      "base64"
+    ).toString("utf-8")
+    expect(svg).toContain("HACK &amp; LOAD &lt;2026&gt;")
+    expect(svg).not.toContain("<2026>")
+  })
 })

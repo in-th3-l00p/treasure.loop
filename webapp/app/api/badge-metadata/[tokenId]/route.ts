@@ -14,7 +14,7 @@ export async function GET(
 ) {
   const { tokenId: raw } = await params
   const tokenId = Number(raw)
-  if (!Number.isInteger(tokenId) || tokenId < 1) {
+  if (!Number.isSafeInteger(tokenId) || tokenId < 1) {
     return NextResponse.json({ error: "invalid-token-id" }, { status: 400 })
   }
 
@@ -37,7 +37,7 @@ export async function GET(
     }),
     {
       headers: {
-        // Metadata is immutable per token for the event's duration.
+        // Short-lived CDN cache; the event name can change before mint.
         "cache-control": "public, s-maxage=300, stale-while-revalidate=3600",
       },
     }
