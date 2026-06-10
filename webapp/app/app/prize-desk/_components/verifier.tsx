@@ -5,10 +5,13 @@ import {
   AlertTriangleIcon,
   CheckCircle2Icon,
   CircleSlashIcon,
+  HistoryIcon,
   Loader2Icon,
   PackageIcon,
+  PrinterIcon,
   ScanLineIcon,
   WalletIcon,
+  WifiOffIcon,
   XCircleIcon,
 } from "lucide-react"
 
@@ -18,19 +21,40 @@ import { lookupWallet, redeemReward } from "@/app/app/prize-desk/_actions"
 import { shortAddress } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
+interface RewardView {
+  id: string
+  name: string
+  description: string | null
+  stockClaimed: number
+  stockTotal: number | null
+  eligible: boolean
+  reason: string
+  alreadyClaimed: boolean
+}
+
+interface PriorClaimView {
+  rewardId: string
+  rewardName: string
+  /** ISO string — Dates don't survive localStorage round-trips. */
+  claimedAt: string
+}
+
 interface LookupSnapshot {
   wallet: string
   hasPlayer: boolean
   onchainConfigured: boolean
   holdsBadge: boolean
-  rewards: Array<{
-    id: string
-    name: string
-    description: string | null
-    stockClaimed: number
-    stockTotal: number | null
-    alreadyClaimed: boolean
-  }>
+  rewards: RewardView[]
+  priorClaims: PriorClaimView[]
+  /** Set when this snapshot was served from the offline cache. */
+  cachedAt?: number
+}
+
+interface Receipt {
+  reward: string
+  wallet: string
+  claimedAt: string
+  staff: string | null
 }
 
 type Verdict = "eligible" | "no-badge" | "no-player"
@@ -71,10 +95,66 @@ const verdictMeta: Record<
   },
 }
 
+const CACHE_KEY = "prizedesk.lookups.v1"
+const CACHE_LIMIT = 10
+
+type CacheMap = Record<string, LookupSnapshot>
+
+function readCache(): CacheMap {
+  if (typeof window === "undefined") return {}
+  try {
+    const raw = window.localStorage.getItem(CACHE_KEY)
+    return raw ? (JSON.parse(raw) as CacheMap) : {}
+  } catch {
+    return {}
+  }
+}
+
+/** Store the snapshot keyed by lowercased wallet, capped at N entries. */
+function writeCache(snap: LookupSnapshot) {
+  if (typeof window === "undefined") return
+  try {
+    const cache = readCache()
+    // Drop any prior entry so re-inserting moves it to the most-recent end.
+    delete cache[snap.wallet.toLowerCase()]
+    const stored: LookupSnapshot = { ...snap, cachedAt: Date.now() }
+    const next: CacheMap = { ...cache, [snap.wallet.toLowerCase()]: stored }
+    const keys = Object.keys(next)
+    if (keys.length > CACHE_LIMIT) {
+      // Evict oldest by cachedAt.
+      const sorted = keys.sort(
+        (a, b) => (next[a].cachedAt ?? 0) - (next[b].cachedAt ?? 0)
+      )
+      for (const k of sorted.slice(0, keys.length - CACHE_LIMIT)) {
+        delete next[k]
+      }
+    }
+    window.localStorage.setItem(CACHE_KEY, JSON.stringify(next))
+  } catch {
+    // localStorage full / disabled — caching is best-effort, never fatal.
+  }
+}
+
+function lookupCache(wallet: string): LookupSnapshot | null {
+  return readCache()[wallet.toLowerCase()] ?? null
+}
+
+function formatDate(iso: string): string {
+  const d = new Date(iso)
+  return d.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+}
+
 export function PrizeDeskVerifier({
   initialAddress,
+  eventName,
 }: {
   initialAddress?: string | null
+  eventName: string
 }) {
   const [input, setInput] = useState<string>(initialAddress ?? "")
   const [snapshot, setSnapshot] = useState<LookupSnapshot | null>(null)
@@ -82,6 +162,8 @@ export function PrizeDeskVerifier({
   const [redeemMessage, setRedeemMessage] = useState<string | null>(null)
   const [verifying, startVerify] = useTransition()
   const [redeemingId, setRedeemingId] = useState<string | null>(null)
+  const [dupAcknowledged, setDupAcknowledged] = useState(false)
+  const [receipt, setReceipt] = useState<Receipt | null>(null)
 
   const verify = useCallback(() => {
     const wallet = input.trim()
@@ -91,33 +173,52 @@ export function PrizeDeskVerifier({
     }
     setError(null)
     setRedeemMessage(null)
+    setReceipt(null)
+    setDupAcknowledged(false)
     setSnapshot(null)
     startVerify(async () => {
-      const res = await lookupWallet({ walletAddress: wallet })
-      if (!res.ok) {
-        setError(
-          res.error === "bad-address"
-            ? "That doesn't look like a wallet address."
-            : res.error === "forbidden"
-              ? "You don't have access to verify here."
-              : "Could not verify wallet."
-        )
-        return
+      try {
+        const res = await lookupWallet({ walletAddress: wallet })
+        if (!res.ok) {
+          setError(
+            res.error === "bad-address"
+              ? "That doesn't look like a wallet address."
+              : res.error === "forbidden"
+                ? "You don't have access to verify here."
+                : "Could not verify wallet."
+          )
+          return
+        }
+        const fresh: LookupSnapshot = {
+          wallet: res.wallet,
+          hasPlayer: !!res.player,
+          onchainConfigured: res.onchain.configured,
+          holdsBadge: res.onchain.holdsBadge,
+          rewards: res.rewards,
+          priorClaims: res.priorClaims.map((c) => ({
+            rewardId: c.rewardId,
+            rewardName: c.rewardName,
+            claimedAt:
+              typeof c.claimedAt === "string"
+                ? c.claimedAt
+                : new Date(c.claimedAt).toISOString(),
+          })),
+        }
+        writeCache(fresh)
+        setSnapshot(fresh)
+      } catch {
+        // RPC / network down: fall back to the cached lookup so the queue
+        // keeps moving. Clearly marked as stale below.
+        const cached = lookupCache(wallet)
+        if (cached) {
+          setSnapshot(cached)
+          setError(null)
+        } else {
+          setError(
+            "Lookup failed and no cached result for this wallet. Check the connection and retry."
+          )
+        }
       }
-      setSnapshot({
-        wallet: res.wallet,
-        hasPlayer: !!res.player,
-        onchainConfigured: res.onchain.configured,
-        holdsBadge: res.onchain.holdsBadge,
-        rewards: res.availableRewards.map((r) => ({
-          id: r.id,
-          name: r.name,
-          description: r.description,
-          stockClaimed: r.stockClaimed,
-          stockTotal: r.stockTotal,
-          alreadyClaimed: res.claimedRewardIds.has(r.id),
-        })),
-      })
     })
   }, [input])
 
@@ -136,6 +237,12 @@ export function PrizeDeskVerifier({
             setRedeemMessage(res.message)
           } else {
             setRedeemMessage(`Handed out ${res.rewardName}.`)
+            setReceipt({
+              reward: res.rewardName,
+              wallet: snapshot.wallet,
+              claimedAt: res.claimedAt,
+              staff: res.staffUserId,
+            })
             setSnapshot((prev) =>
               prev
                 ? {
@@ -149,10 +256,22 @@ export function PrizeDeskVerifier({
                           }
                         : r
                     ),
+                    priorClaims: [
+                      ...prev.priorClaims,
+                      {
+                        rewardId,
+                        rewardName: res.rewardName,
+                        claimedAt: res.claimedAt,
+                      },
+                    ],
                   }
                 : prev
             )
           }
+        } catch {
+          setRedeemMessage(
+            "Redemption failed to reach the server. Do not hand out yet — retry when back online."
+          )
         } finally {
           setRedeemingId(null)
         }
@@ -162,10 +281,15 @@ export function PrizeDeskVerifier({
   )
 
   const verdict = snapshot ? verdictOf(snapshot) : null
+  const isStale = !!snapshot?.cachedAt
+  // A wallet that has redeemed *anything* before is flagged; staff must
+  // acknowledge before the redeem buttons activate.
+  const hasPriorClaims = (snapshot?.priorClaims.length ?? 0) > 0
+  const ackGateOpen = !hasPriorClaims || dupAcknowledged
 
   return (
     <section className="grid gap-6">
-      <div>
+      <div className="print:hidden">
         <div className="mb-3">
           <h2 className="text-sm font-medium">Scan or enter badge</h2>
           <p className="text-xs text-muted-foreground">
@@ -212,19 +336,41 @@ export function PrizeDeskVerifier({
       </div>
 
       {error && (
-        <div className="flex items-start gap-2.5 rounded-lg border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+        <div className="flex items-start gap-2.5 rounded-lg border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200 print:hidden">
           <XCircleIcon className="mt-0.5 size-3.5 shrink-0" />
           <p>{error}</p>
         </div>
       )}
 
       {snapshot && verdict && (
-        <div className="grid gap-5">
+        <div className="grid gap-5 print:hidden">
+          {isStale && (
+            <div className="flex items-start gap-2.5 rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+              <WifiOffIcon className="mt-0.5 size-3.5 shrink-0" />
+              <p>
+                Showing a cached result — the live check didn&apos;t reach the
+                chain.{" "}
+                {snapshot.cachedAt
+                  ? `Cached ${formatDate(new Date(snapshot.cachedAt).toISOString())}. `
+                  : ""}
+                May be stale; reverify when the connection is back.
+              </p>
+            </div>
+          )}
+
           <VerdictPanel
             verdict={verdict}
             wallet={snapshot.wallet}
             onchainConfigured={snapshot.onchainConfigured}
           />
+
+          {hasPriorClaims && (
+            <DuplicateFlag
+              claims={snapshot.priorClaims}
+              acknowledged={dupAcknowledged}
+              onAcknowledge={setDupAcknowledged}
+            />
+          )}
 
           <div>
             <p className="mb-2 text-xs text-muted-foreground">Reward tier</p>
@@ -238,7 +384,11 @@ export function PrizeDeskVerifier({
                 const depleted =
                   r.stockTotal !== null && r.stockClaimed >= r.stockTotal
                 const disabled =
-                  depleted || r.alreadyClaimed || verdict !== "eligible"
+                  depleted ||
+                  r.alreadyClaimed ||
+                  !r.eligible ||
+                  verdict !== "eligible" ||
+                  !ackGateOpen
                 return (
                   <li
                     key={r.id}
@@ -248,7 +398,9 @@ export function PrizeDeskVerifier({
                       <PackageIcon
                         className={cn(
                           "mt-0.5 size-4",
-                          i === 0 ? "text-primary" : "text-muted-foreground"
+                          r.eligible && i === 0
+                            ? "text-primary"
+                            : "text-muted-foreground"
                         )}
                       />
                       <div>
@@ -258,14 +410,16 @@ export function PrizeDeskVerifier({
                             ? "Already claimed by this wallet."
                             : depleted
                               ? "Out of stock."
-                              : r.stockTotal !== null
-                                ? `${r.stockClaimed} of ${r.stockTotal} claimed`
-                                : "Unlimited"}
+                              : !r.eligible
+                                ? r.reason
+                                : r.stockTotal !== null
+                                  ? `${r.stockClaimed} of ${r.stockTotal} claimed · ${r.reason}`
+                                  : r.reason}
                         </p>
                       </div>
                     </div>
                     <Button
-                      variant={i === 0 ? "default" : "outline"}
+                      variant={r.eligible && i === 0 ? "default" : "outline"}
                       size="sm"
                       className="h-7 text-xs"
                       disabled={disabled || redeemingId === r.id}
@@ -273,6 +427,8 @@ export function PrizeDeskVerifier({
                     >
                       {redeemingId === r.id ? (
                         <Loader2Icon className="size-3 animate-spin" />
+                      ) : !r.eligible ? (
+                        "Not eligible"
                       ) : i === 0 ? (
                         "Hand out & redeem"
                       ) : (
@@ -288,10 +444,67 @@ export function PrizeDeskVerifier({
                 {redeemMessage}
               </p>
             )}
+            {receipt && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-3 h-8 text-xs"
+                onClick={() => window.print()}
+              >
+                <PrinterIcon className="mr-1.5 size-3.5" />
+                Print receipt
+              </Button>
+            )}
           </div>
         </div>
       )}
+
+      {receipt && <ReceiptCard receipt={receipt} eventName={eventName} />}
     </section>
+  )
+}
+
+/**
+ * Calm, operational flag for a wallet that already redeemed something.
+ * Not alarming — informs the staffer and gates the redeem buttons behind
+ * a single acknowledgement tick.
+ */
+function DuplicateFlag({
+  claims,
+  acknowledged,
+  onAcknowledge,
+}: {
+  claims: PriorClaimView[]
+  acknowledged: boolean
+  onAcknowledge: (v: boolean) => void
+}) {
+  return (
+    <div className="rounded-lg border border-amber-400/30 bg-amber-500/[0.06] px-4 py-3">
+      <div className="flex items-start gap-2.5">
+        <HistoryIcon className="mt-0.5 size-4 shrink-0 text-amber-300" />
+        <div className="grid gap-1.5">
+          <p className="text-sm font-medium text-amber-100">
+            This wallet has redeemed before
+          </p>
+          <ul className="grid gap-0.5 text-xs text-amber-200/90">
+            {claims.map((c) => (
+              <li key={`${c.rewardId}-${c.claimedAt}`}>
+                Redeemed {c.rewardName} on {formatDate(c.claimedAt)}
+              </li>
+            ))}
+          </ul>
+          <label className="mt-1 flex cursor-pointer items-center gap-2 text-xs text-amber-100">
+            <input
+              type="checkbox"
+              checked={acknowledged}
+              onChange={(e) => onAcknowledge(e.target.checked)}
+              className="size-3.5 accent-amber-400"
+            />
+            I&apos;ve checked this and it&apos;s fine to continue
+          </label>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -333,6 +546,52 @@ function VerdictPanel({
             : "Contract not configured; DB only"}
         </p>
       </div>
+    </div>
+  )
+}
+
+/**
+ * Printable hand-out receipt. Hidden on screen except as the print
+ * affordance; the `@media print` rules in globals.css promote it to the
+ * full page so a browser "Print" produces a clean ticket.
+ */
+function ReceiptCard({
+  receipt,
+  eventName,
+}: {
+  receipt: Receipt
+  eventName: string
+}) {
+  return (
+    <div
+      data-prize-receipt
+      className="hidden border border-border p-6 print:block print:border-black print:text-black"
+    >
+      <p className="text-[11px] tracking-[0.2em] text-muted-foreground uppercase print:text-black">
+        Prize desk receipt
+      </p>
+      <p className="mt-1 text-lg font-medium">{eventName}</p>
+      <dl className="mt-4 grid gap-2 text-sm">
+        <div className="flex justify-between gap-6">
+          <dt className="text-muted-foreground print:text-black">Reward</dt>
+          <dd className="font-medium">{receipt.reward}</dd>
+        </div>
+        <div className="flex justify-between gap-6">
+          <dt className="text-muted-foreground print:text-black">Wallet</dt>
+          <dd className="font-mono">{shortAddress(receipt.wallet)}</dd>
+        </div>
+        <div className="flex justify-between gap-6">
+          <dt className="text-muted-foreground print:text-black">Time</dt>
+          <dd>{formatDate(receipt.claimedAt)}</dd>
+        </div>
+        <div className="flex justify-between gap-6">
+          <dt className="text-muted-foreground print:text-black">Staff</dt>
+          <dd className="font-mono">{receipt.staff ?? "—"}</dd>
+        </div>
+      </dl>
+      <p className="mt-5 border-t border-border pt-3 text-[11px] text-muted-foreground print:border-black print:text-black">
+        Keep this slip. One reward per wallet per tier.
+      </p>
     </div>
   )
 }

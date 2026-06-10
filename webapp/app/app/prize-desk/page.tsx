@@ -46,7 +46,10 @@ export default async function PrizeDeskPage() {
       />
 
       <div className="grid gap-10 lg:grid-cols-[1.4fr_1fr]">
-        <PrizeDeskVerifier initialAddress={current?.address ?? null} />
+        <PrizeDeskVerifier
+          initialAddress={current?.address ?? null}
+          eventName={event.name}
+        />
 
         <div className="grid gap-10">
           <section>

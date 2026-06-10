@@ -1541,3 +1541,26 @@ iframe[src*="accounts.dev/"][src*="keyless"] {
     @apply font-sans;
   }
 }
+
+/*
+ * Prize-desk printable receipt. When a staffer hits "Print receipt" we
+ * want a clean slip, not the whole app shell. Hide everything, then
+ * reveal only the receipt block (marked with `data-prize-receipt`) and
+ * promote it to the top of the page.
+ */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  [data-prize-receipt],
+  [data-prize-receipt] * {
+    visibility: visible;
+  }
+  [data-prize-receipt] {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    background: #fff;
+    color: #000;
+  }
+}

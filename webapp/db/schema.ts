@@ -12,6 +12,8 @@ import {
   varchar,
 } from "drizzle-orm/pg-core"
 
+import type { EligibilityRule } from "@/lib/reward-eligibility"
+
 /**
  * TreasureLoop database schema.
  *
@@ -196,6 +198,11 @@ export const rewards = pgTable(
     stockTotal: integer("stock_total"),
     stockClaimed: integer("stock_claimed").notNull().default(0),
     status: rewardStatus("status").notNull().default("open"),
+    /**
+     * Optional eligibility rule (see `lib/reward-eligibility.ts`). When
+     * null the reward is open to any wallet holding the finisher badge.
+     */
+    eligibilityRule: jsonb("eligibility_rule").$type<EligibilityRule | null>(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

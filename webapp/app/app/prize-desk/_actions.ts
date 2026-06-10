@@ -1,18 +1,70 @@
 "use server"
 
-import { and, eq, sql } from "drizzle-orm"
+import { and, asc, eq, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { type Address, getAddress, isAddress } from "viem"
 
 import { db } from "@/db/client"
-import { auditLog, players, redemptionClaims, rewards } from "@/db/schema"
+import {
+  auditLog,
+  badgeMints,
+  players,
+  redemptionClaims,
+  rewards,
+  scans,
+} from "@/db/schema"
 import { getSubject } from "@/lib/auth-server"
 import { hasRole, ROLES } from "@/lib/authz"
 import { checkOnchainBadge } from "@/lib/badge-onchain"
 import { currentEventId } from "@/lib/player-store"
+import {
+  type EligibilityContext,
+  evaluateEligibility,
+} from "@/lib/reward-eligibility"
+
+/**
+ * Build the eligibility context for one wallet/player in one event:
+ * its 1-based mint rank (by `badge_mints.minted_at` across the event)
+ * and its scan count. `holdsBadge` is supplied by the caller since it
+ * comes from the on-chain check (or the DB fallback in dev).
+ */
+async function buildEligibilityContext(
+  eventId: string,
+  playerId: string,
+  holdsBadge: boolean
+): Promise<EligibilityContext> {
+  // Mint rank: order every minted player in the event by mint time and
+  // find this player's position. Null if this player hasn't minted.
+  const minted = await db
+    .select({ playerId: badgeMints.playerId })
+    .from(badgeMints)
+    .innerJoin(players, eq(players.id, badgeMints.playerId))
+    .where(eq(players.eventId, eventId))
+    .orderBy(asc(badgeMints.mintedAt), asc(badgeMints.id))
+
+  const idx = minted.findIndex((m) => m.playerId === playerId)
+  const mintRank = idx === -1 ? null : idx + 1
+
+  const [scanRow] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(scans)
+    .where(eq(scans.playerId, playerId))
+
+  return {
+    holdsBadge,
+    mintRank,
+    scanCount: scanRow?.count ?? 0,
+  }
+}
 
 export type RedeemResult =
-  | { ok: true; claimId: string; rewardName: string }
+  | {
+      ok: true
+      claimId: string
+      rewardName: string
+      claimedAt: string
+      staffUserId: string | null
+    }
   | { ok: false; error: string; message: string }
 
 /**
@@ -93,6 +145,22 @@ export async function redeemReward(input: {
     }
   }
 
+  // 3b. Re-evaluate this reward's eligibility rule server-side. The
+  //     verifier already filters to eligible rewards, but a direct POST
+  //     (or a stale client) could ask for one the wallet doesn't
+  //     qualify for. The chain check above is the badge precondition;
+  //     here we enforce the per-reward rule (first-N-mints, min-scans).
+  const holdsBadge = onchain.configured ? onchain.holdsBadge : true
+  const ctx = await buildEligibilityContext(eventId, player.id, holdsBadge)
+  const eligibility = evaluateEligibility(reward.eligibilityRule, ctx)
+  if (!eligibility.eligible) {
+    return {
+      ok: false,
+      error: "not-eligible",
+      message: `Not eligible for ${reward.name}: ${eligibility.reason}`,
+    }
+  }
+
   // 4. Check for prior claim.
   const [prior] = await db
     .select({ id: redemptionClaims.id })
@@ -139,7 +207,7 @@ export async function redeemReward(input: {
 
   // 6. Record the claim. If this fails we need to roll back the
   //    stock — wrap both in a transaction.
-  let claim: { id: string } | null = null
+  let claim: { id: string; claimedAt: Date } | null = null
   await db.transaction(async (tx) => {
     const [c] = await tx
       .insert(redemptionClaims)
@@ -149,7 +217,7 @@ export async function redeemReward(input: {
         staffUserId: subject.userId ?? null,
       })
       .returning()
-    claim = { id: c.id }
+    claim = { id: c.id, claimedAt: c.claimedAt }
     await tx.insert(auditLog).values({
       eventId,
       actor: subject.userId ?? "unknown",
@@ -160,10 +228,13 @@ export async function redeemReward(input: {
   })
 
   revalidatePath("/app/prize-desk")
+  const settled = claim as { id: string; claimedAt: Date } | null
   return {
     ok: true,
-    claimId: claim!.id,
+    claimId: settled!.id,
     rewardName: reward.name,
+    claimedAt: settled!.claimedAt.toISOString(),
+    staffUserId: subject.userId ?? null,
   }
 }
 
@@ -200,22 +271,56 @@ export async function lookupWallet(input: { walletAddress: string }) {
       )
     )
 
-  const claimedRewards = player
+  // Prior claims for this wallet, with reward names + dates so the desk
+  // can flag a wallet that already redeemed something (Phase 5).
+  const priorClaims = player
     ? await db
         .select({
           rewardId: redemptionClaims.rewardId,
+          rewardName: rewards.name,
           claimedAt: redemptionClaims.claimedAt,
         })
         .from(redemptionClaims)
+        .innerJoin(rewards, eq(rewards.id, redemptionClaims.rewardId))
         .where(eq(redemptionClaims.playerId, player.id))
+        .orderBy(asc(redemptionClaims.claimedAt))
     : []
+
+  // Per-reward eligibility for this wallet. We only have a context when
+  // there's a player record; with no player every rule trivially fails
+  // the badge precondition anyway.
+  const holdsBadge = onchain.configured ? onchain.holdsBadge : true
+  const ctx = player
+    ? await buildEligibilityContext(eventId, player.id, holdsBadge)
+    : { holdsBadge, mintRank: null, scanCount: 0 }
+
+  const claimedIds = new Set(priorClaims.map((c) => c.rewardId))
+  const rewardsWithEligibility = availableRewards.map((r) => {
+    const verdict = evaluateEligibility(r.eligibilityRule, ctx)
+    return {
+      id: r.id,
+      name: r.name,
+      description: r.description,
+      stockClaimed: r.stockClaimed,
+      stockTotal: r.stockTotal,
+      rule: r.eligibilityRule ?? null,
+      eligible: verdict.eligible,
+      reason: verdict.reason,
+      alreadyClaimed: claimedIds.has(r.id),
+    }
+  })
 
   return {
     ok: true as const,
     wallet,
     player,
     onchain,
-    availableRewards,
-    claimedRewardIds: new Set(claimedRewards.map((c) => c.rewardId)),
+    context: ctx,
+    rewards: rewardsWithEligibility,
+    priorClaims: priorClaims.map((c) => ({
+      rewardId: c.rewardId,
+      rewardName: c.rewardName,
+      claimedAt: c.claimedAt,
+    })),
   }
 }
