@@ -248,6 +248,8 @@ export async function recordScan(opts: {
     .onConflictDoNothing({
       target: [scans.playerId, scans.checkpointId],
     })
+    // No column args: drizzle's onConflictDoNothing chain only types the
+    // bare form. We only check `length` to detect a genuinely new row.
     .returning()
 
   if (inserted.length > 0) {
