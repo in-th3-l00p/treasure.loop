@@ -34,7 +34,7 @@ const benefits = [
   {
     icon: ArrowRightIcon,
     title: "Follow the clue chain",
-    body: "Each checkpoint reveals what the next one is — and who runs it.",
+    body: "Each checkpoint reveals what the next one is, and who runs it.",
   },
   {
     icon: TrophyIcon,

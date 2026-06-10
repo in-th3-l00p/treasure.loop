@@ -65,7 +65,7 @@ export default async function SponsorsPage({
         description={
           sponsorCheckpoints.length > 0
             ? `Booth traffic across ${listNames(sponsorCheckpoints.map((c) => c.name))}.`
-            : "No checkpoint assigned to this sponsor yet — assign one in the route builder."
+            : "No checkpoint assigned to this sponsor yet. Assign one in the route builder."
         }
       >
         <span className="text-xs text-muted-foreground">

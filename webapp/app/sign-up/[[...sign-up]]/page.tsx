@@ -45,7 +45,7 @@ export default function SignUpPage() {
                 Each event scopes its checkpoints, sponsors, and prize stock.
               </Step>
               <Step n="03" title="Invite your team">
-                Pick roles per invite — organizer, booth staff, prize desk,
+                Pick roles per invite: organizer, booth staff, prize desk,
                 sponsor.
               </Step>
             </ul>

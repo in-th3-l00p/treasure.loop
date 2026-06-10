@@ -19,7 +19,7 @@ const roleOptions: Array<{ value: Role; label: string; hint: string }> = [
   {
     value: ROLES.ORGANIZER,
     label: "Organizer",
-    hint: "Full access — configure event, invite team, view PII.",
+    hint: "Full access: configure the event, invite the team, view PII.",
   },
   {
     value: ROLES.PRIZE_DESK,
@@ -29,7 +29,7 @@ const roleOptions: Array<{ value: Role; label: string; hint: string }> = [
   {
     value: ROLES.BOOTH_STAFF,
     label: "Booth staff",
-    hint: "Operates a checkpoint — sees the rotating code on their kiosk.",
+    hint: "Operates a checkpoint and shows its rotating code on the kiosk.",
   },
   {
     value: ROLES.SPONSOR,

@@ -330,7 +330,7 @@ function VerdictPanel({
         <p className="mt-0.5 text-[11px] opacity-70">
           {onchainConfigured
             ? "Checked on chain"
-            : "Contract not configured — DB only"}
+            : "Contract not configured; DB only"}
         </p>
       </div>
     </div>
