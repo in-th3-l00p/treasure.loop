@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server"
 
-import { canAccessRoute, isMember, isRole } from "@/lib/authz"
+import { canAccessRoute, isMember, normalizeRole } from "@/lib/authz"
 import { buildCsp } from "@/lib/security-headers"
 
 /**
@@ -50,7 +50,8 @@ const isAuthShellRoute = createRouteMatcher([
 export default clerkMiddleware(async (auth, req) => {
   if (isPublicRoute(req)) return withCsp(req, NextResponse.next())
 
-  const { userId, sessionClaims, redirectToSignIn } = await auth()
+  const { userId, orgId: authOrgId, orgRole: authOrgRole, sessionClaims, redirectToSignIn } =
+    await auth()
 
   // 1. Must be signed in to enter anything non-public.
   if (!userId) {
@@ -63,15 +64,20 @@ export default clerkMiddleware(async (auth, req) => {
 
   // 2. Inside /app/* every page must pass the authz policy.
   if (isAppRoute(req)) {
+    // Prefer Clerk's parsed top-level org fields. The default v2 session
+    // token encodes the active org under the compact `o` claim, so raw
+    // `sessionClaims.org_id` is undefined and would wrongly bounce every
+    // organizer to /no-organization.
     const orgId =
-      typeof sessionClaims?.org_id === "string"
+      authOrgId ??
+      (typeof sessionClaims?.org_id === "string"
         ? sessionClaims.org_id
-        : null
-    const orgRoleRaw = sessionClaims?.org_role
+        : null)
+    const orgRoleRaw = authOrgRole ?? sessionClaims?.org_role
     const subject = {
       userId,
       orgId,
-      orgRole: isRole(orgRoleRaw) ? orgRoleRaw : null,
+      orgRole: normalizeRole(orgRoleRaw),
     }
 
     // No active org → push them to a page that prompts them to create or join one.

@@ -6,7 +6,7 @@ import {
   type Role,
   hasRole,
   isMember,
-  isRole,
+  normalizeRole,
 } from "./authz"
 
 /**
@@ -16,11 +16,24 @@ import {
  */
 export async function getSubject(): Promise<AuthSubject> {
   let userId: string | null | undefined
-  let sessionClaims: Record<string, unknown> | undefined | null
+  let orgId: string | null | undefined
+  let orgRoleRaw: unknown
   try {
     const result = await auth()
     userId = result.userId
-    sessionClaims = result.sessionClaims as Record<string, unknown> | null
+    // Read the parsed top-level fields. Clerk v7's default v2 session
+    // token encodes the active org under the compact `o` claim (not
+    // `org_id`), so digging into raw `sessionClaims.org_id` returns
+    // undefined and the org-scoped console can never load. `auth()`
+    // exposes the resolved values directly.
+    orgId = result.orgId
+    orgRoleRaw = result.orgRole
+    if (!orgId) {
+      // Fallback for older JWT templates that expose org_id explicitly.
+      const claims = result.sessionClaims as Record<string, unknown> | null
+      if (typeof claims?.org_id === "string") orgId = claims.org_id
+      if (orgRoleRaw == null) orgRoleRaw = claims?.org_role
+    }
   } catch {
     // Thrown when @clerk/backend has no publishable key configured. We
     // treat the request as anonymous so the caller's redirect-to-login
@@ -28,13 +41,10 @@ export async function getSubject(): Promise<AuthSubject> {
     return { userId: null, orgId: null, orgRole: null }
   }
 
-  const orgId =
-    typeof sessionClaims?.org_id === "string" ? sessionClaims.org_id : null
-  const orgRoleRaw = sessionClaims?.org_role
   return {
     userId: userId ?? null,
-    orgId,
-    orgRole: isRole(orgRoleRaw) ? orgRoleRaw : null,
+    orgId: orgId ?? null,
+    orgRole: normalizeRole(orgRoleRaw),
   }
 }
 

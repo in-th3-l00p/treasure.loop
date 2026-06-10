@@ -1,4 +1,4 @@
-import { CreateOrganization } from "@clerk/nextjs"
+import { OrganizationList } from "@clerk/nextjs"
 
 export default function NoOrganizationPage() {
   return (
@@ -13,11 +13,13 @@ export default function NoOrganizationPage() {
           </h1>
           <p className="text-sm text-muted-foreground">
             TreasureLoop scopes every checkpoint, scan, and badge to an
-            event. Create one to start configuring, or wait for an
-            invitation from an organizer.
+            event. Select an existing one, create a new event, or wait for
+            an invitation from an organizer.
           </p>
         </div>
-        <CreateOrganization
+        <OrganizationList
+          hidePersonal
+          afterSelectOrganizationUrl="/app"
           afterCreateOrganizationUrl="/app"
           skipInvitationScreen
         />

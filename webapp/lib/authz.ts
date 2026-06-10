@@ -51,6 +51,24 @@ export function isRole(value: unknown): value is Role {
   return typeof value === "string" && ROLE_VALUES.has(value)
 }
 
+/**
+ * Normalize a Clerk org role into one of our app roles.
+ *
+ * The app defines custom roles (`org:organizer`, `org:prize_desk`, …)
+ * that an organizer assigns per invitation. But Clerk also ships two
+ * BUILT-IN org roles — `org:admin` and `org:member` — and the person who
+ * creates the organization is an `org:admin`. Semantically the org admin
+ * is the event organizer (full access), so we map `org:admin` →
+ * `org:organizer`. This lets the console work against any Clerk instance
+ * without first configuring custom roles. A plain `org:member` with no
+ * assigned app role has no operational permissions (returns null).
+ */
+export function normalizeRole(value: unknown): Role | null {
+  if (isRole(value)) return value
+  if (value === "org:admin" || value === "admin") return ROLES.ORGANIZER
+  return null
+}
+
 /** Returns true if the subject is signed in *and* a member of an org. */
 export function isMember(subject: AuthSubject): boolean {
   return Boolean(subject.userId && subject.orgId && isRole(subject.orgRole))
