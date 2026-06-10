@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server"
 import { type Hash, isHash } from "viem"
 
+import { withRouteLogging, type RouteContext } from "@/lib/logger"
+import { increment, Metric } from "@/lib/metrics"
 import { getPlayAddress } from "@/lib/play-session"
 import { currentEventId, recordBadgeMint } from "@/lib/player-store"
 
-export async function POST(req: Request) {
+export const POST = withRouteLogging(
+  "play/mint-confirm",
+  async (req: Request, ctx: RouteContext) => {
   const address = await getPlayAddress()
   if (!address) {
     return NextResponse.json(
@@ -12,6 +16,7 @@ export async function POST(req: Request) {
       { status: 401 }
     )
   }
+  ctx.set({ actor: address })
 
   let body: { txHash?: string; tokenId?: number }
   try {
@@ -32,12 +37,15 @@ export async function POST(req: Request) {
     tokenId: body.tokenId,
   })
   if (!progress) {
+    increment(Metric.Mint, { outcome: "rejected", stage: "confirm" })
     return NextResponse.json({ error: "mint-rejected" }, { status: 400 })
   }
 
+  increment(Metric.Mint, { outcome: "confirmed" })
   return NextResponse.json({
     ok: true,
     badgeMintedAt: progress.badgeMintedAt,
     txHash: body.txHash,
   })
-}
+  }
+)

@@ -4,6 +4,8 @@ import { and, eq } from "drizzle-orm"
 import { db } from "@/db/client"
 import { auditLog, checkpoints } from "@/db/schema"
 import { verifyCheckpointCode } from "@/lib/checkpoint-codes"
+import { withRouteLogging, type RouteContext } from "@/lib/logger"
+import { increment, Metric } from "@/lib/metrics"
 import { getPlayAddress } from "@/lib/play-session"
 import {
   currentEventId,
@@ -61,7 +63,9 @@ async function auditReject(opts: {
   }
 }
 
-export async function POST(req: Request) {
+export const POST = withRouteLogging(
+  "play/scan",
+  async (req: Request, ctx: RouteContext) => {
   // Per-IP rate limit: 30 scans/minute is more than a real player can
   // physically do across a venue. Catches brute-forcing the TOTP.
   const limit = rateLimit(rateLimitKeyFromRequest(req), {
@@ -70,6 +74,7 @@ export async function POST(req: Request) {
     windowMs: 60_000,
   })
   if (!limit.ok) {
+    increment(Metric.Scan, { outcome: "rate_limited" })
     return NextResponse.json(
       { error: "rate-limited", retryAfterMs: limit.retryAfterMs },
       {
@@ -88,6 +93,7 @@ export async function POST(req: Request) {
       { status: 401 }
     )
   }
+  ctx.set({ actor: address })
 
   let body: ScanBody
   try {
@@ -112,7 +118,10 @@ export async function POST(req: Request) {
 
   const eventId = await currentEventId()
 
+  ctx.set({ checkpointId: body.checkpointId })
+
   if (!(await isValidCheckpoint(eventId, body.checkpointId))) {
+    increment(Metric.Scan, { outcome: "rejected", reason: "unknown-checkpoint" })
     await auditReject({
       reason: "unknown-checkpoint",
       actor: address,
@@ -130,6 +139,7 @@ export async function POST(req: Request) {
     // NFC tag. Reject if it doesn't verify; never silently fall back to
     // the TOTP code (a bad token is a tamper signal, not a typo).
     if (!verifyScanToken(body.checkpointId, body.t as string)) {
+      increment(Metric.Scan, { outcome: "rejected", reason: "bad-url-token" })
       await auditReject({
         reason: "bad-url-token",
         actor: address,
@@ -157,6 +167,10 @@ export async function POST(req: Request) {
       // every code in production. (Tests / older seeds bypass this by
       // setting `ALLOW_UNSECURED_SCANS=1` in env.)
       if (process.env.ALLOW_UNSECURED_SCANS !== "1") {
+        increment(Metric.Scan, {
+          outcome: "rejected",
+          reason: "checkpoint-not-configured",
+        })
         await auditReject({
           reason: "checkpoint-not-configured",
           actor: address,
@@ -169,6 +183,7 @@ export async function POST(req: Request) {
         )
       }
     } else if (!verifyCheckpointCode(cp.secret, body.code as string)) {
+      increment(Metric.Scan, { outcome: "rejected", reason: "invalid-code" })
       await auditReject({
         reason: "invalid-code",
         actor: address,
@@ -185,6 +200,7 @@ export async function POST(req: Request) {
     checkpointId: body.checkpointId,
   })
   if (!progress) {
+    increment(Metric.Scan, { outcome: "rejected", reason: "scan-rejected" })
     await auditReject({
       reason: "scan-rejected",
       actor: address,
@@ -194,5 +210,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "scan-rejected" }, { status: 400 })
   }
 
+  increment(Metric.Scan, { outcome: "ok" })
   return NextResponse.json({ progress })
-}
+  }
+)

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { SiweMessage } from "siwe"
 import { getAddress } from "viem"
 
+import { withRouteLogging, type RouteContext } from "@/lib/logger"
 import { getPlaySession } from "@/lib/play-session"
 import { rateLimit, rateLimitKeyFromRequest } from "@/lib/rate-limit"
 
@@ -23,7 +24,9 @@ interface VerifyBody {
  *   5. On success: clear pendingNonce, store address + chainId on the
  *      session, return 200. On failure: 401 with a reason.
  */
-export async function POST(req: Request) {
+export const POST = withRouteLogging(
+  "play/auth/verify",
+  async (req: Request, ctx: RouteContext) => {
   // Rate limit: 10 verify attempts per IP per minute is way above any
   // legitimate usage, but still cuts brute-force throughput hard.
   const limit = rateLimit(rateLimitKeyFromRequest(req), {
@@ -100,6 +103,8 @@ export async function POST(req: Request) {
   session.issuedAt = Date.now()
   delete session.pendingNonce
   await session.save()
+  ctx.set({ actor: session.address })
 
   return NextResponse.json({ ok: true, address: session.address })
-}
+  }
+)

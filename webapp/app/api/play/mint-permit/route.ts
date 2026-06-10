@@ -5,6 +5,8 @@ import {
   BADGE_CONTRACT_ADDRESS,
   BADGE_CONTRACT_CONFIGURED,
 } from "@/lib/badge-contract"
+import { withRouteLogging, type RouteContext } from "@/lib/logger"
+import { increment, Metric } from "@/lib/metrics"
 import { issueMintPermit } from "@/lib/mint-permits"
 import { getPlayAddress } from "@/lib/play-session"
 import {
@@ -17,7 +19,9 @@ import {
  * Issue an EIP-712-signed `MintPermit` for the SIWE-authenticated
  * player iff they have actually finished the loop.
  */
-export async function POST() {
+export const POST = withRouteLogging(
+  "play/mint-permit",
+  async (_req: Request, ctx: RouteContext) => {
   if (!BADGE_CONTRACT_CONFIGURED) {
     return NextResponse.json(
       {
@@ -36,6 +40,7 @@ export async function POST() {
       { status: 401 }
     )
   }
+  ctx.set({ actor: address })
 
   const eventId = await currentEventId()
   const progress = await getProgress(eventId, address)
@@ -73,6 +78,7 @@ export async function POST() {
   try {
     issued = await issueMintPermit({ player: address })
   } catch (e) {
+    increment(Metric.Mint, { outcome: "error", stage: "permit" })
     const message = e instanceof Error ? e.message : "signer-error"
     return NextResponse.json(
       { error: "signer-unavailable", message },
@@ -80,6 +86,7 @@ export async function POST() {
     )
   }
 
+  increment(Metric.Mint, { outcome: "permit_issued" })
   return NextResponse.json({
     contract: BADGE_CONTRACT_ADDRESS,
     chainId: BADGE_CHAIN.id,
@@ -91,4 +98,5 @@ export async function POST() {
     },
     signature: issued.signature,
   })
-}
+  }
+)
