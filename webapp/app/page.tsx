@@ -163,9 +163,10 @@ export default function Home() {
           <a href="#how">How it works</a>
           <a href="#rewards">Rewards</a>
           <a href="#faq">FAQ</a>
+          <Link href="/play">Play</Link>
         </nav>
         <Link className="header-cta" href="/login">
-          Open console
+          Organizer console
         </Link>
       </header>
 
@@ -183,13 +184,17 @@ export default function Home() {
             as an on-chain badge.
           </p>
           <div className="hero-actions">
-            <Link className="primary-action" href="/login">
-              Open the console
+            <Link className="primary-action" href="/play">
+              Play the hunt
             </Link>
-            <Link className="secondary-action" href="/app">
-              See an event in motion
+            <Link className="secondary-action" href="/login">
+              Organizer console
             </Link>
           </div>
+          <p className="hero-actions-note">
+            Attendee? Connect a wallet and start scanning. Running the event?
+            Open the organizer console.
+          </p>
           <dl className="signal-row" aria-label="Product highlights">
             <div>
               <dt>No gas</dt>
@@ -288,8 +293,8 @@ export default function Home() {
             <Link className="primary-action" href="/login">
               Start a deployment
             </Link>
-            <Link className="secondary-action" href="/app">
-              Preview the console
+            <Link className="secondary-action" href="/play">
+              Play a demo hunt
             </Link>
           </div>
         </div>
