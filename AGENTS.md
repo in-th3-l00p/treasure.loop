@@ -8,8 +8,11 @@ This repository is worked on by AI coding agents. Follow this guide before chang
 - App root: `webapp/`.
 - Framework: Next.js App Router, React, TypeScript, Tailwind CSS v4.
 - UI system: shadcn/ui `base-nova` components with Base UI primitives and lucide icons.
-- The marketing landing page at `/` is visually more mature than the mocked product screens.
-- The mocked product screens at `/login` and `/app` exist for exploration only. They are not design-approved and should not be treated as a final direction.
+- The marketing landing page at `/` is design-approved; preserve it.
+- The product surfaces (`/app/**`, `/play/**`, `/login`) run on real auth
+  (Clerk + SIWE) and real Postgres data. Shared console primitives live in
+  `webapp/components/product/`. Strategic and visual context live in
+  `PRODUCT.md` and `DESIGN.md` at the repo root.
 
 Read [PROJECT_CONTEXT.md](./PROJECT_CONTEXT.md) before making non-trivial changes.
 
@@ -49,19 +52,24 @@ If a port is occupied, use a different one rather than killing unrelated process
 ├── README.md                         # Product concept
 ├── AGENTS.md                         # Agent operating guide
 ├── PROJECT_CONTEXT.md                # Product and technical context
-├── TreasureLoop Landing (standalone).html
+├── PRODUCT.md / DESIGN.md            # Strategic + visual design context
+├── ROADMAP.md                        # Phased delivery plan (keep updated)
+├── compose.yaml                      # Local Postgres 16
+├── contracts/                        # Foundry: TreasureLoopBadge.sol + tests
 ├── treasureloop-*.png                # Screenshot evidence from prior work
 └── webapp/
     ├── app/
-    │   ├── page.tsx                  # Marketing landing page
-    │   ├── login/page.tsx            # Mock organizer login
-    │   ├── app/page.tsx              # Mock event console
-    │   ├── layout.tsx
-    │   └── globals.css               # Tailwind v4, shadcn tokens, landing CSS
+    │   ├── page.tsx                  # Marketing landing page (approved)
+    │   ├── login/, sign-up/          # Clerk auth screens
+    │   ├── app/**                    # Operator console (real data)
+    │   ├── play/**                   # Attendee surface (wallet + SIWE)
+    │   ├── api/                      # play APIs, health, Clerk webhook
+    │   └── globals.css               # Tailwind v4, shadcn tokens, landing CSS, .product-shell
     ├── components/ui/                # shadcn generated components
-    ├── lib/mock-data.ts              # Mock event data
-    ├── lib/utils.ts                  # cn helper
-    ├── components.json               # shadcn config
+    ├── components/product/           # Shared console kit
+    ├── db/                           # Drizzle schema, migrations, seed
+    ├── lib/                          # authz, queries, actions, stores, format
+    ├── tests/                        # vitest + PGlite suite
     └── package.json
 ```
 
@@ -112,17 +120,19 @@ npx shadcn@latest add <component>
 
 After adding components, inspect generated files and run verification.
 
-## Mock Data
+## Seed Data
 
-Mocked event data lives in `webapp/lib/mock-data.ts`.
-
-The current mocked event is:
+There is no mock-data module. Dev data comes from `webapp/db/seed.ts`
+(`npm run db:seed` against the compose Postgres):
 
 - `ETH Cluj 2026: TreasureLoop Pilot`
 - Venue: `Cluj Innovation Hall`
-- Network: `Base Sepolia`
+- Network: `base-sepolia`
+- 5 checkpoints with TOTP secrets, 5 sponsors, 4 rewards
 
-Keep mock data realistic and coherent. Product screens should show useful event state: route progress, checkpoints, staff assignment, sponsor value, reward claims, badge minting, and physical prize desk verification.
+Keep seed data realistic and coherent. If you change the event size,
+update all related rows together. Product screens must only render real
+database state — show honest empty states instead of invented numbers.
 
 ## Verification Requirements
 
@@ -145,10 +155,16 @@ Check screenshots visually before committing them.
 
 ## Known Design Status
 
-- Landing page: useful baseline, preserve unless directed otherwise.
-- Login mock: exists, but likely needs a cleaner product design.
-- App mock: exists, but current direction has been rejected by the user. Redesign it deliberately before building on it.
-- The screenshots in the repo are evidence from previous iterations, not final design requirements.
+- Landing page: design-approved, preserve unless directed otherwise.
+- Login / sign-up: real Clerk auth in the split layout; styled via
+  `appearance` in `app/layout.tsx` plus `.cl-*` rules in globals.css.
+- Operator console: redesigned 2026-06 as a quiet operations tool on the
+  shared kit in `webapp/components/product/`. Build on it; don't fork
+  one-off page patterns.
+- Attendee play surface: phone-first, one primary action per screen
+  (`PlayCta`), real event sheet from `GET /api/play/event`.
+- The screenshots in the repo are evidence from iterations, not final
+  design requirements.
 
 ## Commit Guidance
 

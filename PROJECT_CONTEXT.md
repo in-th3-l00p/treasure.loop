@@ -46,15 +46,22 @@ Package mgr   npm
 Important files:
 
 ```text
-webapp/app/layout.tsx        # Root metadata, fonts, TooltipProvider
-webapp/app/globals.css       # Tailwind v4 imports, shadcn tokens, landing styles
-webapp/app/page.tsx          # Marketing landing page
-webapp/app/login/page.tsx    # Mock organizer login
-webapp/app/app/page.tsx      # Mock event operations dashboard
-webapp/components/ui/        # shadcn generated components
-webapp/lib/mock-data.ts      # Mock event model
-webapp/components.json       # shadcn configuration
+webapp/app/layout.tsx          # Root metadata, fonts, Clerk appearance
+webapp/app/globals.css         # Tailwind v4 imports, shadcn tokens, landing styles, .product-shell
+webapp/app/page.tsx            # Marketing landing page
+webapp/app/login/...           # Clerk organizer sign-in
+webapp/app/app/**              # Operator console (overview, routes, sponsors, team, prize desk, booth, preflight)
+webapp/app/play/**             # Attendee surface (wallet, scan, progress, claim)
+webapp/components/ui/          # shadcn generated components
+webapp/components/product/     # Shared console kit: ProductPage, PageHeader, Section, BarChart, Kpi, status
+webapp/lib/format.ts           # shortAddress / timeAgo / clockTime
+webapp/lib/event-queries.ts    # Console read queries (all real DB)
+webapp/db/seed.ts              # Pilot event seed (replaces the old lib/mock-data.ts)
+webapp/components.json         # shadcn configuration
 ```
+
+There is no mock-data module anymore. Every surface reads the database;
+the attendee surface fetches its event sheet from `GET /api/play/event`.
 
 ## Current Routes
 
@@ -76,38 +83,35 @@ Current status:
 
 ### `/login`
 
-Mock organizer login.
-
-Current intent:
-
-- Show how an organizer might enter the console.
-- Communicate that auth is mocked.
-- Route into `/app`.
+Clerk organizer sign-in (split layout: brand panel + inline Clerk form).
 
 Current status:
 
-- Implemented with shadcn components.
-- Not final or design-approved.
-- Can be redesigned freely if improving product feel.
+- Real auth. The Clerk widget is restyled via `appearance` in
+  `app/layout.tsx` plus `.cl-*` overrides in `globals.css`.
 
 ### `/app`
 
-Mock event operations dashboard.
+Operator console, real data.
 
 Current intent:
 
-- Show the organizer-facing event console for one configured event.
-- Mock checkpoint health, player progress, sponsor traffic, rewards, activity, and prize desk operations.
+- Quiet event-operations tool: overview (KPIs, real hourly traffic,
+  checkpoint health, audit-log activity), route builder (live CRUD via
+  Server Actions), sponsors (honest metrics only), team invitations,
+  prize desk (glanceable verdict + atomic redemption), booth kiosk
+  (distance-readable rotating TOTP), preflight go/no-go.
 
 Current status:
 
-- Implemented, but the user rejected the current design direction.
-- Do not treat the current `/app` UI as approved.
-- Use it as a data/content reference only.
+- Redesigned 2026-06 on the shared kit in `webapp/components/product/`.
+  Dense, calm, hairline-divided; purple reserved for primary action,
+  selection, progress, and status. No mock data and no dead nav links —
+  keep it that way.
 
-## Current Mock Event
+## Current Seed Event
 
-Source: `webapp/lib/mock-data.ts`.
+Source: `webapp/db/seed.ts` (`npm run db:seed`).
 
 ```text
 Name:    ETH Cluj 2026: TreasureLoop Pilot
@@ -234,70 +238,33 @@ Installed components include:
 
 Use these before creating custom UI primitives.
 
-## Known Problems To Fix Next
+## Product UI State (2026-06)
 
-### 1. Product UI Direction
+The quiet operations-console direction recommended here has shipped:
 
-The current `/app` mock was rejected by the user. Likely issues:
+- `/app` is a restrained sans console; purple is reserved for primary
+  action, selected nav, progress, and status accents. The overview's
+  first viewport answers: is the event ready (preflight chip), which
+  checkpoint needs action, how many players are moving, are sponsor
+  visits and badge mints flowing.
+- The surfaces are decomposed: overview, route builder (live CRUD),
+  sponsor report, team, prize desk verification, booth kiosk, preflight.
+- The data model is real (see `webapp/db/schema.ts`): events, routes,
+  checkpoints, sponsors, players, scans, badge mints, rewards,
+  redemption claims, staff assignments, audit log.
 
-- It is visually heavy.
-- It borrows too much from the landing page.
-- It does not yet feel like a trustworthy operations tool.
-- It prioritizes looking dramatic over making the event workflow clear.
+Read ROADMAP.md for what is still pending (KV rate limits, contract
+deployment, sponsor lead consent, observability, hardening).
 
-Recommended next direction:
+## Design Conventions To Preserve
 
-- Redesign `/app` as a quiet event operations console.
-- Use a restrained sans typography system.
-- Reserve purple for primary action, selected nav, progress, and status accents.
-- Keep data hierarchy compact and scannable.
-- Make the first viewport answer:
-  - Is the event ready?
-  - Which checkpoint needs action?
-  - How many players are moving?
-  - Are sponsor visits happening?
-  - Are rewards/badge mints flowing?
-
-### 2. Product Surface Decomposition
-
-The real app should probably split into focused surfaces:
-
-- Organizer dashboard.
-- Route/checkpoint builder.
-- Booth staff checkpoint screen.
-- Prize desk verification screen.
-- Attendee mobile web experience.
-- Sponsor report view.
-
-Do not try to design all of these in one giant dashboard without a plan.
-
-### 3. Data Model
-
-Current mock data is plain arrays. A future real model will need entities such as:
-
-- Event
-- Route
-- Checkpoint
-- Sponsor
-- Player
-- Scan
-- Clue
-- Completion
-- Badge mint
-- Reward tier
-- Redemption claim
-- Staff assignment
-
-## Suggested Next Implementation Plan
-
-If asked to continue product work, a good sequence is:
-
-1. Redesign `/app` first as an organizer overview.
-2. Keep `/login` simple and task-focused.
-3. Add an attendee mobile route only after organizer overview feels right.
-4. Add a prize desk route.
-5. Add route builder/checkpoint setup.
-6. Only then think about real auth/backend/on-chain integration.
+- Shared console primitives live in `webapp/components/product/` —
+  use them (ProductPage, PageHeader, Section, SectionHeading, Kpi,
+  BarChart, CheckpointStatus, PageEmpty) before inventing new ones.
+- No fake numbers. If a metric isn't derivable from the database yet,
+  show an honest empty state instead of inventing a value.
+- No dead links or buttons. If a feature isn't built, don't render
+  chrome that pretends it is.
 
 ## Verification
 
