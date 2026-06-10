@@ -4,6 +4,7 @@ import { useCallback, useState, useTransition } from "react"
 import {
   AlertTriangleIcon,
   CheckCircle2Icon,
+  CircleSlashIcon,
   Loader2Icon,
   PackageIcon,
   ScanLineIcon,
@@ -14,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { lookupWallet, redeemReward } from "@/app/app/prize-desk/_actions"
+import { shortAddress } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
 interface LookupSnapshot {
@@ -21,7 +23,6 @@ interface LookupSnapshot {
   hasPlayer: boolean
   onchainConfigured: boolean
   holdsBadge: boolean
-  hasMintedFlag: boolean
   rewards: Array<{
     id: string
     name: string
@@ -32,15 +33,42 @@ interface LookupSnapshot {
   }>
 }
 
-type FeedbackKind = "ok" | "warn" | "err"
+type Verdict = "eligible" | "no-badge" | "no-player"
 
-interface Feedback {
-  kind: FeedbackKind
-  text: string
+function verdictOf(snap: LookupSnapshot): Verdict {
+  if (!snap.hasPlayer) return "no-player"
+  if (snap.onchainConfigured && !snap.holdsBadge) return "no-badge"
+  return "eligible"
 }
 
-function shortAddress(addr: string): string {
-  return `${addr.slice(0, 6)}…${addr.slice(-4)}`
+const verdictMeta: Record<
+  Verdict,
+  {
+    label: string
+    detail: string
+    tone: string
+    Icon: typeof CheckCircle2Icon
+  }
+> = {
+  eligible: {
+    label: "Eligible",
+    detail: "Hand out the reward and redeem it below.",
+    tone: "border-emerald-400/40 bg-emerald-500/10 text-emerald-200",
+    Icon: CheckCircle2Icon,
+  },
+  "no-badge": {
+    label: "No badge on chain",
+    detail:
+      "The wallet played but doesn't hold a finisher badge. Ask them to mint at /play/claim first.",
+    tone: "border-amber-400/40 bg-amber-500/10 text-amber-200",
+    Icon: AlertTriangleIcon,
+  },
+  "no-player": {
+    label: "Hasn't played",
+    detail: "No player record for this wallet at this event.",
+    tone: "border-rose-400/40 bg-rose-500/10 text-rose-200",
+    Icon: CircleSlashIcon,
+  },
 }
 
 export function PrizeDeskVerifier({
@@ -50,38 +78,37 @@ export function PrizeDeskVerifier({
 }) {
   const [input, setInput] = useState<string>(initialAddress ?? "")
   const [snapshot, setSnapshot] = useState<LookupSnapshot | null>(null)
-  const [feedback, setFeedback] = useState<Feedback | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [redeemMessage, setRedeemMessage] = useState<string | null>(null)
   const [verifying, startVerify] = useTransition()
   const [redeemingId, setRedeemingId] = useState<string | null>(null)
 
   const verify = useCallback(() => {
     const wallet = input.trim()
     if (!wallet) {
-      setFeedback({ kind: "err", text: "Enter a wallet address or scan one." })
+      setError("Enter a wallet address or scan one.")
       return
     }
-    setFeedback(null)
+    setError(null)
+    setRedeemMessage(null)
     setSnapshot(null)
     startVerify(async () => {
       const res = await lookupWallet({ walletAddress: wallet })
       if (!res.ok) {
-        setFeedback({
-          kind: "err",
-          text:
-            res.error === "bad-address"
-              ? "That doesn't look like a wallet address."
-              : res.error === "forbidden"
-                ? "You don't have access to verify here."
-                : "Could not verify wallet.",
-        })
+        setError(
+          res.error === "bad-address"
+            ? "That doesn't look like a wallet address."
+            : res.error === "forbidden"
+              ? "You don't have access to verify here."
+              : "Could not verify wallet."
+        )
         return
       }
-      const snap: LookupSnapshot = {
+      setSnapshot({
         wallet: res.wallet,
         hasPlayer: !!res.player,
         onchainConfigured: res.onchain.configured,
         holdsBadge: res.onchain.holdsBadge,
-        hasMintedFlag: res.onchain.hasMintedFlag,
         rewards: res.availableRewards.map((r) => ({
           id: r.id,
           name: r.name,
@@ -90,21 +117,7 @@ export function PrizeDeskVerifier({
           stockTotal: r.stockTotal,
           alreadyClaimed: res.claimedRewardIds.has(r.id),
         })),
-      }
-      setSnapshot(snap)
-      if (!snap.hasPlayer) {
-        setFeedback({
-          kind: "warn",
-          text: "No player record. The wallet hasn't started a loop here.",
-        })
-      } else if (snap.onchainConfigured && !snap.holdsBadge) {
-        setFeedback({
-          kind: "warn",
-          text: "Wallet doesn't currently hold a finisher badge.",
-        })
-      } else {
-        setFeedback({ kind: "ok", text: "Eligible." })
-      }
+      })
     })
   }, [input])
 
@@ -112,6 +125,7 @@ export function PrizeDeskVerifier({
     (rewardId: string) => {
       if (!snapshot) return
       setRedeemingId(rewardId)
+      setRedeemMessage(null)
       ;(async () => {
         try {
           const res = await redeemReward({
@@ -119,12 +133,9 @@ export function PrizeDeskVerifier({
             walletAddress: snapshot.wallet,
           })
           if (!res.ok) {
-            setFeedback({ kind: "err", text: res.message })
+            setRedeemMessage(res.message)
           } else {
-            setFeedback({
-              kind: "ok",
-              text: `Handed out ${res.rewardName}.`,
-            })
+            setRedeemMessage(`Handed out ${res.rewardName}.`)
             setSnapshot((prev) =>
               prev
                 ? {
@@ -149,6 +160,8 @@ export function PrizeDeskVerifier({
     },
     [snapshot]
   )
+
+  const verdict = snapshot ? verdictOf(snapshot) : null
 
   return (
     <section className="grid gap-6">
@@ -198,79 +211,34 @@ export function PrizeDeskVerifier({
         </div>
       </div>
 
-      {feedback && (
-        <div
-          className={cn(
-            "flex items-start gap-2.5 rounded-lg border px-3 py-2 text-xs",
-            feedback.kind === "ok" &&
-              "border-emerald-400/30 bg-emerald-500/10 text-emerald-200",
-            feedback.kind === "warn" &&
-              "border-amber-400/30 bg-amber-500/10 text-amber-200",
-            feedback.kind === "err" &&
-              "border-rose-400/30 bg-rose-500/10 text-rose-200"
-          )}
-        >
-          {feedback.kind === "ok" ? (
-            <CheckCircle2Icon className="mt-0.5 size-3.5 shrink-0" />
-          ) : feedback.kind === "warn" ? (
-            <AlertTriangleIcon className="mt-0.5 size-3.5 shrink-0" />
-          ) : (
-            <XCircleIcon className="mt-0.5 size-3.5 shrink-0" />
-          )}
-          <p>{feedback.text}</p>
+      {error && (
+        <div className="flex items-start gap-2.5 rounded-lg border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+          <XCircleIcon className="mt-0.5 size-3.5 shrink-0" />
+          <p>{error}</p>
         </div>
       )}
 
-      {snapshot && (
+      {snapshot && verdict && (
         <div className="grid gap-5">
-          <div className="grid gap-3 border-b border-border pb-4">
-            <div className="flex items-end justify-between gap-3">
-              <div>
-                <p className="text-xs text-muted-foreground">Wallet</p>
-                <p className="font-mono text-base tracking-[0.04em]">
-                  {shortAddress(snapshot.wallet)}
-                </p>
-              </div>
-              <span
-                className={cn(
-                  "flex items-center gap-1.5 text-xs",
-                  snapshot.holdsBadge || !snapshot.onchainConfigured
-                    ? "text-emerald-400/90"
-                    : "text-amber-300/90"
-                )}
-              >
-                <span
-                  className={cn(
-                    "size-1.5 rounded-full",
-                    snapshot.holdsBadge || !snapshot.onchainConfigured
-                      ? "bg-emerald-400"
-                      : "bg-amber-400"
-                  )}
-                />
-                {snapshot.holdsBadge
-                  ? "Holds finisher badge"
-                  : snapshot.onchainConfigured
-                    ? "No badge on chain"
-                    : "Contract not configured"}
-              </span>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {snapshot.hasPlayer
-                ? "Player record found for this event."
-                : "No player record — wallet hasn't played this event."}
-            </p>
-          </div>
+          <VerdictPanel
+            verdict={verdict}
+            wallet={snapshot.wallet}
+            onchainConfigured={snapshot.onchainConfigured}
+          />
 
           <div>
             <p className="mb-2 text-xs text-muted-foreground">Reward tier</p>
             <ul className="grid divide-y divide-border border-y border-border">
+              {snapshot.rewards.length === 0 && (
+                <li className="py-3 text-sm text-muted-foreground">
+                  No rewards configured for this event.
+                </li>
+              )}
               {snapshot.rewards.map((r, i) => {
                 const depleted =
                   r.stockTotal !== null && r.stockClaimed >= r.stockTotal
                 const disabled =
-                  depleted ||
-                  r.alreadyClaimed ||
-                  (!snapshot.holdsBadge && snapshot.onchainConfigured)
+                  depleted || r.alreadyClaimed || verdict !== "eligible"
                 return (
                   <li
                     key={r.id}
@@ -315,9 +283,56 @@ export function PrizeDeskVerifier({
                 )
               })}
             </ul>
+            {redeemMessage && (
+              <p className="mt-3 text-xs text-muted-foreground">
+                {redeemMessage}
+              </p>
+            )}
           </div>
         </div>
       )}
     </section>
+  )
+}
+
+/**
+ * The glanceable answer. Prize-desk staff read this from arm's length
+ * with a queue watching, so the verdict is large and color-coded.
+ */
+function VerdictPanel({
+  verdict,
+  wallet,
+  onchainConfigured,
+}: {
+  verdict: Verdict
+  wallet: string
+  onchainConfigured: boolean
+}) {
+  const meta = verdictMeta[verdict]
+  return (
+    <div
+      className={cn(
+        "flex items-center justify-between gap-4 rounded-lg border px-5 py-4",
+        meta.tone
+      )}
+    >
+      <div className="flex items-center gap-4">
+        <meta.Icon className="size-7 shrink-0" />
+        <div>
+          <p className="text-xl font-medium tracking-tight">{meta.label}</p>
+          <p className="mt-0.5 text-xs opacity-80">{meta.detail}</p>
+        </div>
+      </div>
+      <div className="text-right">
+        <p className="font-mono text-sm tracking-[0.04em]">
+          {shortAddress(wallet)}
+        </p>
+        <p className="mt-0.5 text-[11px] opacity-70">
+          {onchainConfigured
+            ? "Checked on chain"
+            : "Contract not configured — DB only"}
+        </p>
+      </div>
+    </div>
   )
 }

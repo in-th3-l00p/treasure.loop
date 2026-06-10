@@ -8,12 +8,13 @@ import { currentCode, secondsUntilNext } from "@/lib/checkpoint-codes"
 import { rotateCheckpointSecret } from "@/lib/event-actions"
 
 /**
- * The kiosk screen.
+ * The kiosk screen. Runs on a tablet propped at the booth, read by
+ * players from a step away — so the six digits are the whole show:
+ * maximum size, maximum contrast, nothing decorative competing.
  *
  * The TOTP code is computed client-side from the shared secret so we
- * don't need to round-trip to the server every second. The secret is
- * given to staff by the organizer (and the page won't render if the
- * staff isn't authorized — middleware enforces that).
+ * don't round-trip to the server every second. Middleware has already
+ * verified the viewer is booth staff for this checkpoint.
  */
 export function KioskScreen({
   checkpointId,
@@ -40,7 +41,6 @@ export function KioskScreen({
 
   const rotate = useCallback(() => {
     if (
-      typeof window !== "undefined" &&
       !window.confirm(
         "Rotate this checkpoint's secret? All previous codes become invalid immediately."
       )
@@ -49,10 +49,8 @@ export function KioskScreen({
     }
     startTransition(async () => {
       await rotateCheckpointSecret({ checkpointId })
-      // Server revalidates; the page reload picks up the new secret.
-      if (typeof window !== "undefined") {
-        window.location.reload()
-      }
+      // Server revalidates; the reload picks up the new secret.
+      window.location.reload()
     })
   }, [checkpointId])
 
@@ -62,24 +60,31 @@ export function KioskScreen({
   const pct = (remaining / 30) * 100
 
   return (
-    <div className="grid gap-6 rounded-3xl border border-border bg-gradient-to-br from-primary/10 to-fuchsia-400/5 p-8">
-      <div className="grid place-items-center gap-4">
+    <div className="grid gap-8 rounded-2xl border border-border bg-card/40 px-8 py-12">
+      <div className="grid place-items-center gap-6">
         <p className="font-mono text-[11px] tracking-[0.18em] text-muted-foreground uppercase">
           Show this code to the player
         </p>
-        <div className="grid grid-flow-col items-center gap-3 text-7xl font-medium tabular-nums leading-none tracking-tight sm:text-8xl">
+        <div className="grid grid-flow-col items-center gap-4 text-[clamp(5rem,16vw,9rem)] font-medium tabular-nums leading-none tracking-tight">
           <span>{front}</span>
-          <span className="text-muted-foreground/40">·</span>
+          <span className="text-muted-foreground/30">·</span>
           <span>{back}</span>
         </div>
-        <div className="grid w-full max-w-md gap-1">
-          <div className="h-1 w-full overflow-hidden rounded-full bg-secondary/50">
+        <div className="grid w-full max-w-md gap-1.5">
+          <div
+            className="h-1.5 w-full overflow-hidden rounded-full bg-secondary/60"
+            role="progressbar"
+            aria-valuenow={remaining}
+            aria-valuemin={0}
+            aria-valuemax={30}
+            aria-label="Seconds until the code rotates"
+          >
             <div
-              className="h-full rounded-full bg-gradient-to-r from-primary to-fuchsia-400 transition-[width] duration-300"
+              className="h-full rounded-full bg-primary transition-[width] duration-300"
               style={{ width: `${pct}%` }}
             />
           </div>
-          <p className="text-center font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
+          <p className="text-center font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
             Rotates in {remaining}s
           </p>
         </div>
@@ -87,7 +92,7 @@ export function KioskScreen({
 
       <div className="flex items-center justify-between border-t border-border pt-4">
         <p className="text-xs text-muted-foreground">
-          Code is valid for ±30 seconds of staff/player clock drift.
+          Codes stay valid for ±30 seconds of clock drift.
         </p>
         <Button
           variant="ghost"

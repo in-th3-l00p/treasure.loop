@@ -1,6 +1,8 @@
 import Link from "next/link"
 import { and, eq, isNull } from "drizzle-orm"
 
+import { PageEmpty } from "@/components/product/empty-state"
+import { ProductPage, PageHeader } from "@/components/product/shell"
 import { db } from "@/db/client"
 import { checkpoints, staffAssignments } from "@/db/schema"
 import { requireRoles } from "@/lib/auth-server"
@@ -16,11 +18,7 @@ export default async function BoothIndex() {
   const subject = await requireRoles([ROLES.ORGANIZER, ROLES.BOOTH_STAFF])
   const event = await getActiveEvent()
   if (!event) {
-    return (
-      <div className="mx-auto max-w-md px-6 pt-24 text-center">
-        <h1 className="text-xl font-medium tracking-tight">No active event</h1>
-      </div>
-    )
+    return <PageEmpty title="No active event" />
   }
 
   // Organizers see every active checkpoint; booth staff see only the
@@ -74,18 +72,16 @@ export default async function BoothIndex() {
         .orderBy(checkpoints.orderIndex)
 
   return (
-    <div className="mx-auto max-w-[1180px] px-6 pt-8 pb-16 lg:px-10">
-      <header className="pb-8">
-        <h1 className="text-xl font-medium tracking-tight">Booth kiosk</h1>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          Pick a checkpoint to display its rotating verification code. Keep
-          the screen visible to attendees during the event.
-        </p>
-      </header>
+    <ProductPage width="narrow">
+      <PageHeader
+        title="Booth kiosk"
+        description="Pick a checkpoint to display its rotating verification code. Keep the screen visible to attendees during the event."
+      />
 
       {assigned.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          You don&apos;t have any checkpoint assignments yet.
+          You don&apos;t have any checkpoint assignments yet. Ask your
+          organizer to assign you to a checkpoint.
         </p>
       ) : (
         <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -114,6 +110,6 @@ export default async function BoothIndex() {
           ))}
         </ul>
       )}
-    </div>
+    </ProductPage>
   )
 }

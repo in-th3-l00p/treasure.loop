@@ -1,8 +1,7 @@
-import {
-  AlertTriangleIcon,
-} from "lucide-react"
+import { AlertTriangleIcon } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
+import { PageEmpty } from "@/components/product/empty-state"
+import { ProductPage, PageHeader } from "@/components/product/shell"
 import {
   Table,
   TableBody,
@@ -19,29 +18,15 @@ import {
   listRewards,
   listVerificationQueue,
 } from "@/lib/event-queries"
+import { clockTime, shortAddress, timeAgo } from "@/lib/format"
 
 import { PrizeDeskVerifier } from "./_components/verifier"
-
-function shortAddress(addr: string): string {
-  return `${addr.slice(0, 6)}…${addr.slice(-4)}`
-}
-
-function timeAgo(ms: number): string {
-  const mins = Math.max(1, Math.round((Date.now() - ms) / 60_000))
-  if (mins < 60) return `${mins} min ago`
-  const hrs = Math.round(mins / 60)
-  return `${hrs}h ago`
-}
 
 export default async function PrizeDeskPage() {
   await requireRoles([ROLES.ORGANIZER, ROLES.PRIZE_DESK])
   const event = await getActiveEvent()
   if (!event) {
-    return (
-      <div className="mx-auto max-w-md px-6 pt-24 text-center">
-        <h1 className="text-xl font-medium tracking-tight">No active event</h1>
-      </div>
-    )
+    return <PageEmpty title="No active event" />
   }
   const [queue, rewards, recentRedemptions] = await Promise.all([
     listVerificationQueue(event.id),
@@ -54,24 +39,11 @@ export default async function PrizeDeskPage() {
   const others = eligibleQueue.slice(1, 4)
 
   return (
-    <div className="mx-auto max-w-[1280px] px-6 pt-8 pb-16 lg:px-10">
-      <header className="flex flex-wrap items-end justify-between gap-6 pb-8">
-        <div className="max-w-xl">
-          <h1 className="text-xl font-medium tracking-tight">Verification</h1>
-          <p className="mt-1.5 text-sm text-muted-foreground">
-            Verify on-chain completion badges and hand out the physical reward
-            tier the player is eligible for.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-muted-foreground">
-            Staff · Vlad M. · Main hall exit
-          </span>
-          <Button variant="ghost" className="h-8 text-muted-foreground">
-            Today&apos;s log
-          </Button>
-        </div>
-      </header>
+    <ProductPage>
+      <PageHeader
+        title="Prize desk"
+        description="Verify on-chain completion badges and hand out the physical reward tier the player is eligible for."
+      />
 
       <div className="grid gap-10 lg:grid-cols-[1.4fr_1fr]">
         <PrizeDeskVerifier initialAddress={current?.address ?? null} />
@@ -80,9 +52,11 @@ export default async function PrizeDeskPage() {
           <section>
             <div className="mb-3 flex items-end justify-between border-b border-border pb-3">
               <div>
-                <h2 className="text-sm font-medium">Waiting at desk</h2>
+                <h2 className="text-sm font-medium">Recently minted</h2>
                 <p className="text-xs text-muted-foreground">
-                  {others.length} players holding eligible badges
+                  {others.length === 0
+                    ? "Players appear here as they mint"
+                    : `${others.length} players holding fresh badges`}
                 </p>
               </div>
             </div>
@@ -113,9 +87,7 @@ export default async function PrizeDeskPage() {
                         <AlertTriangleIcon className="size-3 text-amber-300" />
                       )}
                       <span className="font-mono tabular-nums">
-                        {p.mintedAt
-                          ? timeAgo(p.mintedAt.getTime())
-                          : "—"}
+                        {p.mintedAt ? timeAgo(p.mintedAt) : "—"}
                       </span>
                     </span>
                   </li>
@@ -171,7 +143,9 @@ export default async function PrizeDeskPage() {
             <div className="mb-3 flex items-end justify-between border-b border-border pb-3">
               <div>
                 <h2 className="text-sm font-medium">Recent redemptions</h2>
-                <p className="text-xs text-muted-foreground">Last 30 minutes</p>
+                <p className="text-xs text-muted-foreground">
+                  Latest hand-outs, most recent first
+                </p>
               </div>
             </div>
             {recentRedemptions.length === 0 ? (
@@ -186,15 +160,12 @@ export default async function PrizeDeskPage() {
                     className="grid grid-cols-[auto_1fr_auto] items-center gap-3 py-2.5"
                   >
                     <span className="w-10 font-mono text-[11px] text-muted-foreground tabular-nums">
-                      {r.claimedAt.toISOString().slice(11, 16)}
+                      {clockTime(r.claimedAt)}
                     </span>
                     <div className="min-w-0">
                       <p className="truncate text-sm">{r.rewardName}</p>
                       <p className="truncate font-mono text-[11px] text-muted-foreground">
-                        {shortAddress(r.wallet)} ·{" "}
-                        {r.staffUserId
-                          ? r.staffUserId.slice(0, 8)
-                          : "staff"}
+                        {shortAddress(r.wallet)}
                       </p>
                     </div>
                     <span className="size-1.5 rounded-full bg-emerald-400/70" />
@@ -205,7 +176,6 @@ export default async function PrizeDeskPage() {
           </section>
         </div>
       </div>
-    </div>
+    </ProductPage>
   )
 }
-
