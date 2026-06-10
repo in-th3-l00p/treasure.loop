@@ -29,13 +29,20 @@ const SESSION_PASSWORD =
   // production without setting PLAY_SESSION_SECRET to a 32+ char value.
   "dev-only-fallback-iron-session-secret-change-me!!"
 
-if (
-  process.env.NODE_ENV === "production" &&
-  !process.env.PLAY_SESSION_SECRET
-) {
-  throw new Error(
-    "PLAY_SESSION_SECRET must be set in production (>= 32 characters)."
-  )
+/**
+ * Enforced on first request-time use, not at module scope: `next build`
+ * evaluates route modules with NODE_ENV=production and no runtime env,
+ * and a module-scope throw fails the build instead of the deploy.
+ */
+function assertProductionSecret() {
+  if (
+    process.env.NODE_ENV === "production" &&
+    !process.env.PLAY_SESSION_SECRET
+  ) {
+    throw new Error(
+      "PLAY_SESSION_SECRET must be set in production (>= 32 characters)."
+    )
+  }
 }
 
 export const SESSION_OPTIONS: SessionOptions = {
@@ -53,6 +60,7 @@ export const SESSION_OPTIONS: SessionOptions = {
 
 /** Read (or create) the session for the current request. */
 export async function getPlaySession() {
+  assertProductionSecret()
   const cookieStore = await cookies()
   return getIronSession<PlaySession>(cookieStore, SESSION_OPTIONS)
 }
