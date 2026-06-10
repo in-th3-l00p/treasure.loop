@@ -60,6 +60,8 @@ export interface CheckpointRow {
   id: string
   name: string
   area: string | null
+  routeId: string
+  sponsorId: string | null
   sponsorName: string | null
   sponsorTier: string | null
   scans: number
@@ -88,6 +90,8 @@ export async function listCheckpoints(
       id: checkpoints.id,
       name: checkpoints.name,
       area: checkpoints.area,
+      routeId: checkpoints.routeId,
+      sponsorId: checkpoints.sponsorId,
       sponsorName: sponsors.name,
       sponsorTier: sponsors.tier,
       status: checkpoints.status,
@@ -107,6 +111,8 @@ export async function listCheckpoints(
     id: r.id,
     name: r.name,
     area: r.area,
+    routeId: r.routeId,
+    sponsorId: r.sponsorId,
     sponsorName: r.sponsorName,
     sponsorTier: r.sponsorTier,
     scans: r.scanCount,
