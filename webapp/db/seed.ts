@@ -40,6 +40,8 @@ async function main() {
       datesEnd: new Date("2026-07-19T18:00:00Z"),
       network: "base-sepolia",
       status: "live_rehearsal",
+      badgeContractAddress:
+        process.env.NEXT_PUBLIC_BADGE_CONTRACT_ADDRESS ?? null,
     })
     .returning()
   console.log(`[seed] event ${event.id}`)
