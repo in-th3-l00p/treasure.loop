@@ -143,6 +143,8 @@ export async function recordScan(args: {
   code?: string
   /** HMAC-signed URL token from a tap-to-scan flow (`/play/scan?…&t=…`). */
   t?: string
+  /** Opt-in to share this wallet with the booth's sponsor. Default off. */
+  shareLead?: boolean
 }): Promise<{ progress: PublicProgress }> {
   return jsonFetch("/api/play/scan", {
     method: "POST",

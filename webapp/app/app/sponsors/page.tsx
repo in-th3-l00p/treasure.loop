@@ -1,211 +1,170 @@
+import { headers } from "next/headers"
 import Link from "next/link"
+import { DownloadIcon } from "lucide-react"
 
-import { BarChart, ChartLegend } from "@/components/product/bar-chart"
+import { db } from "@/db/client"
 import { PageEmpty } from "@/components/product/empty-state"
-import { Metric } from "@/components/product/kpi"
 import { Section, SectionHeading } from "@/components/product/section"
 import { ProductPage, PageHeader } from "@/components/product/shell"
-import { CheckpointStatus } from "@/components/product/status"
+import {
+  SponsorReportView,
+  tierLabel,
+} from "@/components/product/sponsor-report"
+import { buttonVariants } from "@/components/ui/button"
 import { requireRoles } from "@/lib/auth-server"
 import { ROLES } from "@/lib/authz"
+import { activeShareLinkForSponsor } from "@/lib/share-links"
+import { resolveSponsorScope } from "@/lib/sponsor-access"
 import {
-  getActiveEvent,
-  listCheckpoints,
-  listHourlyTraffic,
-  listSponsors,
-} from "@/lib/event-queries"
+  getSponsorReport,
+  listSponsorLeads,
+  sponsorVisitCount,
+} from "@/lib/sponsor-analytics"
 import { cn } from "@/lib/utils"
 
-const tierLabel: Record<string, string> = {
-  gold: "Gold",
-  prize: "Prize",
-  community: "Community",
-}
+import { ShareLinkControl } from "./_components/share-link-control"
 
+/**
+ * Sponsor report — real data, privacy-scoped.
+ *
+ * Organizers see every sponsor; a `sponsor`-role user sees only the
+ * booth(s) matched to their account email (`resolveSponsorScope`). The
+ * report renders aggregate traffic + talk-through for anyone permitted;
+ * individual opted-in leads (from `lead_consents`) render in the same
+ * scope. The raw per-wallet scan log is never shown here.
+ */
 export default async function SponsorsPage({
   searchParams,
 }: {
   searchParams: Promise<{ s?: string }>
 }) {
   await requireRoles([ROLES.ORGANIZER, ROLES.SPONSOR])
-  const event = await getActiveEvent()
-  if (!event) {
-    return <PageEmpty title="No active event" />
-  }
-  const [sponsors, checkpoints, { s }] = await Promise.all([
-    listSponsors(event.id),
-    listCheckpoints(event.id),
+
+  const [scope, { s }] = await Promise.all([
+    resolveSponsorScope(),
     searchParams,
   ])
-  if (sponsors.length === 0) {
+
+  if (!scope) {
+    return <PageEmpty title="No active event" />
+  }
+  if (scope.sponsors.length === 0) {
     return (
-      <PageEmpty title="No sponsors yet">
-        Add a sponsor in the route builder to see booth traffic here.
+      <PageEmpty title="No sponsors to show">
+        {scope.isOrganizer
+          ? "Add a sponsor in the route builder to see booth traffic here."
+          : "Your account isn't linked to a sponsor booth for this event yet. Ask the organizer to set your contact email on the sponsor."}
       </PageEmpty>
     )
   }
 
-  const activeSponsor = sponsors.find((sp) => sp.id === s) ?? sponsors[0]
-  const sponsorCheckpoints = checkpoints.filter(
-    (c) => c.sponsorId === activeSponsor.id
+  // Visit count per sponsor for the selector strip.
+  const sponsorVisits = await Promise.all(
+    scope.sponsors.map((sp) => sponsorVisitCount(db, sp.id))
   )
-  const traffic = await listHourlyTraffic(event.id, {
-    sponsorId: activeSponsor.id,
-  })
-  const maxTraffic = Math.max(...traffic.map((h) => h.scans), 0)
-  const busiest = traffic.reduce(
-    (best, h) => (h.scans > best.scans ? h : best),
-    traffic[0] ?? { hour: "—", scans: 0, completions: 0 }
+  const visitsById = new Map(
+    scope.sponsors.map((sp, i) => [sp.id, sponsorVisits[i]])
   )
+
+  const activeSponsor =
+    scope.sponsors.find((sp) => sp.id === s) ?? scope.sponsors[0]
+
+  const [report, leads, link] = await Promise.all([
+    getSponsorReport(db, {
+      id: activeSponsor.id,
+      name: activeSponsor.name,
+      tier: activeSponsor.tier,
+    }),
+    listSponsorLeads(db, activeSponsor.id),
+    activeShareLinkForSponsor(db, activeSponsor.id),
+  ])
+
+  const h = await headers()
+  const proto = h.get("x-forwarded-proto") ?? "https"
+  const host = h.get("host") ?? ""
+  const baseUrl = host ? `${proto}://${host}` : ""
 
   return (
     <ProductPage>
       <PageHeader
         title={activeSponsor.name}
         description={
-          sponsorCheckpoints.length > 0
-            ? `Booth traffic across ${listNames(sponsorCheckpoints.map((c) => c.name))}.`
+          report.checkpoints.length > 0
+            ? `Booth traffic across ${listNames(report.checkpoints.map((c) => c.name))}.`
             : "No checkpoint assigned to this sponsor yet. Assign one in the route builder."
         }
       >
         <span className="text-xs text-muted-foreground">
           {tierLabel[activeSponsor.tier] ?? activeSponsor.tier} sponsor
         </span>
+        <a
+          href={`/api/app/sponsor-leads/${activeSponsor.id}`}
+          download
+          className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+        >
+          <DownloadIcon className="size-3.5" />
+          Export leads
+        </a>
       </PageHeader>
 
-      <Section>
-        <div className="grid divide-y divide-border overflow-hidden rounded-lg border border-border sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4">
-          {sponsors.map((sp) => {
-            const active = sp.id === activeSponsor.id
-            return (
-              <Link
-                key={sp.id}
-                href={`/app/sponsors?s=${sp.id}`}
-                data-active={active || undefined}
-                className={cn(
-                  "group relative flex flex-col gap-3 p-5 transition-colors",
-                  "hover:bg-muted/30",
-                  "data-[active]:bg-muted/40"
-                )}
-              >
-                <span
-                  className={cn(
-                    "absolute inset-x-0 top-0 h-px transition-colors",
-                    active ? "bg-primary" : "bg-transparent"
-                  )}
-                />
-                <div className="flex items-start justify-between gap-2">
-                  <span className="text-sm">{sp.name}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {tierLabel[sp.tier] ?? sp.tier}
-                  </span>
-                </div>
-                <div className="flex flex-col leading-tight">
-                  <span className="text-2xl font-medium tabular-nums tracking-tight">
-                    {sp.visits.toLocaleString()}
-                  </span>
-                  <span className="mt-0.5 text-xs text-muted-foreground">
-                    checkpoint scans
-                  </span>
-                </div>
-              </Link>
-            )
-          })}
-        </div>
-      </Section>
-
-      <Section className="grid gap-10 lg:grid-cols-[1.5fr_1fr]">
-        <div>
-          <SectionHeading
-            title="Booth traffic"
-            hint="Scans recorded at this sponsor's checkpoints, last 8 hours"
-          />
-          <BarChart
-            data={traffic.map((h) => ({
-              label: h.hour,
-              primary: h.scans,
-              secondary: 0,
-            }))}
-            max={maxTraffic}
-            emptyLabel="No scans recorded yet."
-          />
-          <ChartLegend items={[{ label: "Scans", tone: "primary" }]} />
-        </div>
-
-        <div className="grid gap-8">
-          <section>
-            <div className="mb-5 border-b border-border pb-3">
-              <h2 className="text-sm font-medium">Today&apos;s numbers</h2>
-              <p className="text-xs text-muted-foreground">
-                Live from the scan log
-              </p>
-            </div>
-            <dl className="grid gap-x-8 gap-y-6 sm:grid-cols-2">
-              <Metric
-                label="Total scans"
-                value={activeSponsor.visits.toLocaleString()}
-              />
-              <Metric
-                label="Busiest hour"
-                value={busiest.scans > 0 ? busiest.hour : "—"}
-                hint={
-                  busiest.scans > 0
-                    ? `${busiest.scans} scans`
-                    : "No traffic yet"
-                }
-              />
-            </dl>
-          </section>
-
-          <section>
-            <div className="mb-3 border-b border-border pb-3">
-              <h2 className="text-sm font-medium">Checkpoints operated</h2>
-              <p className="text-xs text-muted-foreground">
-                Stations staffed by {activeSponsor.name}
-              </p>
-            </div>
-            {sponsorCheckpoints.length === 0 ? (
-              <p className="py-4 text-sm text-muted-foreground">
-                None yet.{" "}
+      {scope.sponsors.length > 1 && (
+        <Section>
+          <div className="grid divide-y divide-border overflow-hidden rounded-lg border border-border sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4">
+            {scope.sponsors.map((sp) => {
+              const active = sp.id === activeSponsor.id
+              return (
                 <Link
-                  href="/app/routes"
-                  className="text-foreground underline-offset-4 hover:underline"
+                  key={sp.id}
+                  href={`/app/sponsors?s=${sp.id}`}
+                  data-active={active || undefined}
+                  className={cn(
+                    "group relative flex flex-col gap-3 p-5 transition-colors",
+                    "hover:bg-muted/30",
+                    "data-[active]:bg-muted/40"
+                  )}
                 >
-                  Assign one in the route builder
+                  <span
+                    className={cn(
+                      "absolute inset-x-0 top-0 h-px transition-colors",
+                      active ? "bg-primary" : "bg-transparent"
+                    )}
+                  />
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-sm">{sp.name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {tierLabel[sp.tier] ?? sp.tier}
+                    </span>
+                  </div>
+                  <div className="flex flex-col leading-tight">
+                    <span className="text-2xl font-medium tabular-nums tracking-tight">
+                      {(visitsById.get(sp.id) ?? 0).toLocaleString()}
+                    </span>
+                    <span className="mt-0.5 text-xs text-muted-foreground">
+                      checkpoint scans
+                    </span>
+                  </div>
                 </Link>
-                .
-              </p>
-            ) : (
-              <ul className="grid divide-y divide-border">
-                {sponsorCheckpoints.map((cp) => (
-                  <li
-                    key={cp.id}
-                    className="flex items-center justify-between gap-3 py-3"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm">{cp.name}</p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {cp.area ?? "—"} · {cp.scans.toLocaleString()} scans
-                      </p>
-                    </div>
-                    <CheckpointStatus status={cp.status} />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </div>
-      </Section>
+              )
+            })}
+          </div>
+        </Section>
+      )}
+
+      <SponsorReportView data={report} leads={leads} />
 
       <Section>
         <SectionHeading
-          title="Qualified leads"
-          hint="Attendees who opt in to share their wallet with this sponsor at scan time"
+          title="Shareable report link"
+          hint="A revocable public link to this booth's aggregate report. No login, leads stay private."
         />
-        <p className="max-w-md py-2 text-sm text-muted-foreground">
-          Lead capture ships with the attendee consent flow. Until then,
-          booth conversations stay where they belong: at the booth.
-        </p>
+        <div className="max-w-2xl py-1">
+          <ShareLinkControl
+            eventId={scope.eventId}
+            sponsorId={activeSponsor.id}
+            initialToken={link?.token ?? null}
+            baseUrl={baseUrl}
+          />
+        </div>
       </Section>
     </ProductPage>
   )

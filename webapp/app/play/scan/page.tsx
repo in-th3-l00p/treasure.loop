@@ -24,6 +24,7 @@ function ScanPageInner() {
   const { data: playEvent, isLoading: loadingEvent } = usePlayEvent()
   const scan = useRecordScan()
   const [code, setCode] = useState("")
+  const [shareLead, setShareLead] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   // Guard so a signed URL only auto-submits once per page load.
@@ -64,12 +65,14 @@ function ScanPageInner() {
       const data = await scan.mutateAsync({
         checkpointId: next.id,
         code: code.trim(),
+        // Only meaningful at a sponsor booth; harmless otherwise.
+        shareLead: Boolean(next.sponsor) && shareLead,
       })
       finishScan(data.progress.finished)
     } catch (e) {
       onScanError(e)
     }
-  }, [next, code, scan, finishScan, onScanError])
+  }, [next, code, shareLead, scan, finishScan, onScanError])
 
   // Tap-to-scan: a signed `?cp=&t=` URL submits the token automatically
   // for the matching unscanned checkpoint, skipping manual code entry.
@@ -233,6 +236,40 @@ function ScanPageInner() {
 
           {localError && (
             <p className="text-[11px] text-rose-300/90">{localError}</p>
+          )}
+
+          {next.sponsor && (
+            <button
+              type="button"
+              role="switch"
+              aria-checked={shareLead}
+              onClick={() => setShareLead((v) => !v)}
+              className="flex items-start gap-3 rounded-xl border border-border bg-card/20 px-3.5 py-3 text-left transition-colors hover:bg-card/40"
+            >
+              <span
+                aria-hidden
+                className={cn(
+                  "mt-0.5 flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 transition-colors",
+                  shareLead ? "bg-primary" : "bg-muted"
+                )}
+              >
+                <span
+                  className={cn(
+                    "size-4 rounded-full bg-background transition-transform",
+                    shareLead ? "translate-x-4" : "translate-x-0"
+                  )}
+                />
+              </span>
+              <span className="grid gap-0.5">
+                <span className="text-sm">
+                  Share my wallet with {next.sponsor}
+                </span>
+                <span className="text-[11px] leading-snug text-muted-foreground">
+                  Optional. Lets this sponsor follow up with you. You can
+                  scan without sharing.
+                </span>
+              </span>
+            </button>
           )}
 
           <PlayCta

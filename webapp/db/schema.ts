@@ -336,6 +336,110 @@ export const redemptionClaims = pgTable(
   ]
 )
 
+// ─────────────────────────── lead_consents ─────────────────────────
+//
+// Privacy-first sponsor leads. A row exists ONLY when a player explicitly
+// opted in ("Share my wallet with this sponsor") at scan time for a
+// sponsor-backed checkpoint. A sponsor sees individual wallets only
+// through this table; the raw scan log stays organizer-only. Idempotent
+// per (player, sponsor) so a re-scan never duplicates a lead.
+
+export const leadConsents = pgTable(
+  "lead_consents",
+  {
+    id: text("id").primaryKey().default(shortId("lc")),
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    playerId: text("player_id")
+      .notNull()
+      .references(() => players.id, { onDelete: "cascade" }),
+    checkpointId: text("checkpoint_id")
+      .notNull()
+      .references(() => checkpoints.id, { onDelete: "cascade" }),
+    sponsorId: text("sponsor_id").references(() => sponsors.id, {
+      onDelete: "set null",
+    }),
+    wallet: varchar("wallet", { length: 42 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    // One consent per player + sponsor: opting in twice at the same booth
+    // is a no-op, not a duplicate lead.
+    uniqueIndex("lead_consents_player_sponsor_idx").on(
+      t.playerId,
+      t.sponsorId
+    ),
+    index("lead_consents_sponsor_idx").on(t.sponsorId),
+    index("lead_consents_event_idx").on(t.eventId),
+  ]
+)
+
+// ─────────────────────── sponsor_traffic_hourly ────────────────────
+//
+// Pre-aggregated booth traffic. A cron job (`/api/cron/rollup-sponsor-
+// traffic`) recomputes these buckets from `scans` every few minutes so
+// the read path never hot-loops over the raw scan log. The read path
+// prefers this table and falls back to live aggregation when it's empty.
+
+export const sponsorTrafficHourly = pgTable(
+  "sponsor_traffic_hourly",
+  {
+    id: text("id").primaryKey().default(shortId("sth")),
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    sponsorId: text("sponsor_id")
+      .notNull()
+      .references(() => sponsors.id, { onDelete: "cascade" }),
+    bucketStart: timestamp("bucket_start", { withTimezone: true }).notNull(),
+    scanCount: integer("scan_count").notNull().default(0),
+    computedAt: timestamp("computed_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    // The bucket key: one row per sponsor per hour. The rollup upserts
+    // against this so a re-run is idempotent.
+    uniqueIndex("sponsor_traffic_hourly_bucket_idx").on(
+      t.sponsorId,
+      t.bucketStart
+    ),
+    index("sponsor_traffic_hourly_event_idx").on(t.eventId),
+  ]
+)
+
+// ─────────────────────────── share_links ───────────────────────────
+//
+// Revocable, unauthenticated read-only access to a single sponsor's
+// aggregate report. The token is unguessable (random base32). A link is
+// valid while `revokedAt` is null; revoking flips it without deleting
+// the row, so the audit trail survives.
+
+export const shareLinks = pgTable(
+  "share_links",
+  {
+    token: text("token").primaryKey(),
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    sponsorId: text("sponsor_id")
+      .notNull()
+      .references(() => sponsors.id, { onDelete: "cascade" }),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("share_links_sponsor_idx").on(t.sponsorId),
+    index("share_links_event_idx").on(t.eventId),
+  ]
+)
+
 // ─────────────────────────── audit_log ─────────────────────────────
 
 export const auditLog = pgTable("audit_log", {
@@ -364,3 +468,8 @@ export type RedemptionClaim = typeof redemptionClaims.$inferSelect
 export type Reward = typeof rewards.$inferSelect
 export type StaffAlert = typeof staffAlerts.$inferSelect
 export type NewStaffAlert = typeof staffAlerts.$inferInsert
+export type LeadConsent = typeof leadConsents.$inferSelect
+export type NewLeadConsent = typeof leadConsents.$inferInsert
+export type SponsorTrafficHourly = typeof sponsorTrafficHourly.$inferSelect
+export type ShareLink = typeof shareLinks.$inferSelect
+export type NewShareLink = typeof shareLinks.$inferInsert

@@ -7,6 +7,7 @@ import {
   badgeMints,
   checkpoints,
   events,
+  leadConsents,
   players,
   scans,
   sponsors,
@@ -253,11 +254,19 @@ export async function getProgress(
   }
 }
 
-/** Record a scan. Idempotent on the (player, checkpoint) pair. */
+/** Record a scan. Idempotent on the (player, checkpoint) pair.
+ *
+ * `shareLead` is the player's privacy-first opt-in ("Share my wallet
+ * with this sponsor"). When true AND the checkpoint is sponsor-backed,
+ * we record a `lead_consents` row best-effort inside the same
+ * transaction. It defaults off and a withheld consent never affects the
+ * scan — the player scans normally either way.
+ */
 export async function recordScan(opts: {
   eventId: string
   wallet: Address
   checkpointId: string
+  shareLead?: boolean
 }): Promise<PublicProgress | null> {
   if (!(await isValidCheckpoint(opts.eventId, opts.checkpointId))) {
     return null
@@ -286,7 +295,10 @@ export async function recordScan(opts: {
 
     if (inserted.length > 0) {
       const [cp] = await tx
-        .select({ name: checkpoints.name })
+        .select({
+          name: checkpoints.name,
+          sponsorId: checkpoints.sponsorId,
+        })
         .from(checkpoints)
         .where(
           and(
@@ -302,6 +314,24 @@ export async function recordScan(opts: {
         target: opts.checkpointId,
         meta: { wallet: player.wallet, checkpointName: cp?.name ?? null },
       })
+
+      // Privacy-first lead capture: only when the player explicitly opted
+      // in AND the checkpoint is sponsor-backed. Idempotent per
+      // (player, sponsor); a withheld consent records nothing.
+      if (opts.shareLead && cp?.sponsorId) {
+        await tx
+          .insert(leadConsents)
+          .values({
+            eventId: opts.eventId,
+            playerId: player.id,
+            checkpointId: opts.checkpointId,
+            sponsorId: cp.sponsorId,
+            wallet: player.wallet,
+          })
+          .onConflictDoNothing({
+            target: [leadConsents.playerId, leadConsents.sponsorId],
+          })
+      }
     }
 
     await tx

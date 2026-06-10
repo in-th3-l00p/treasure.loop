@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server"
+import { auth, currentUser } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation"
 
 import {
@@ -54,6 +54,24 @@ export async function requireRoles(allowed: readonly Role[]): Promise<AuthSubjec
   if (!hasRole(subject, allowed)) redirect("/forbidden")
 
   return subject
+}
+
+/**
+ * The signed-in user's verified email addresses, lowercased. Used to
+ * scope a `sponsor`-role user to the sponsor booth(s) whose
+ * `contact_email` matches their account. Returns `[]` for anonymous
+ * users or when Clerk isn't configured.
+ */
+export async function getSubjectEmails(): Promise<string[]> {
+  try {
+    const user = await currentUser()
+    if (!user) return []
+    return user.emailAddresses
+      .map((e) => e.emailAddress?.toLowerCase())
+      .filter((e): e is string => Boolean(e))
+  } catch {
+    return []
+  }
 }
 
 /** Lighter variant: just requires org membership. */

@@ -450,6 +450,10 @@ function humaniseAction(action: string, meta: unknown): string {
       return "Sponsor updated"
     case "sponsor.archived":
       return "Sponsor archived"
+    case "sponsor.share_link_created":
+      return "Sponsor share link created"
+    case "sponsor.share_link_revoked":
+      return "Sponsor share link revoked"
     case "reward.created":
       return `Reward “${m.name ?? "unnamed"}” added`
     case "reward.updated":

@@ -31,9 +31,11 @@ const isPublicRoute = createRouteMatcher([
   "/login(.*)",
   "/sign-up(.*)",
   "/play(.*)", // attendee surface — wallet auth, not Clerk
+  "/share/(.*)", // revocable public sponsor report — token-gated, not Clerk
   "/api/play/(.*)", // attendee API — guarded by SIWE session, not Clerk
   "/api/badge-metadata/(.*)", // tokenURI target — wallets fetch anonymously
   "/api/webhooks/(.*)", // signed by the provider, not by Clerk session
+  "/api/cron/(.*)", // scheduled jobs — guarded by CRON_SECRET, not Clerk
   "/api/health",
 ])
 

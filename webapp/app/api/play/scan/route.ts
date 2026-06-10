@@ -31,6 +31,12 @@ interface ScanBody {
    * fall through to the TOTP `code` path so manual entry still works.
    */
   t?: string
+  /**
+   * Privacy-first opt-in: when true and this checkpoint is sponsor-backed,
+   * record a `lead_consents` row so the sponsor sees this wallet. Default
+   * off; never blocks the scan.
+   */
+  shareLead?: boolean
 }
 
 type RejectReason =
@@ -214,6 +220,7 @@ export const POST = withRouteLogging(
     eventId,
     wallet: address,
     checkpointId: body.checkpointId,
+    shareLead: body.shareLead === true,
   })
   if (!progress) {
     increment(Metric.Scan, { outcome: "rejected", reason: "scan-rejected" })
