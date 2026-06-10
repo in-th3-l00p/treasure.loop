@@ -15,16 +15,16 @@ until that gate passes.
 |---|---|
 | 1. Persistent data | ✅ shipped — Drizzle + Postgres, 11 tables, in-process tests via PGlite |
 | 2. Operator CRUD | ✅ shipped — Server Actions for events, routes, checkpoints, sponsors, rewards, staff invitations; Clerk webhook for org→event sync; /app/team for invitations |
-| 3. Secure scan flow | 🟡 partial — TOTP per checkpoint live, in-process rate limits live; KV-backed rate limits + HMAC URL signature still pending |
-| 4. Badge contract | 🟡 partial — Solidity + 15 Foundry tests committed; not yet deployed; KMS for signer key not wired |
-| 5. Prize desk on-chain | ✅ shipped — verifier reads on-chain balance, redeems with atomic stock decrement, audit log on every redemption |
-| 6. Booth-staff kiosk | ✅ shipped — /app/booth + /app/booth/[id] with rotating TOTP display and secret rotation |
-| 7. Pair fragments | ⬜ deferred (4-week cut list) |
-| 8. Sponsor analytics | 🟡 partial — page reads real DB, deep analytics + lead consent still pending |
-| 9. Observability | 🟡 partial — /api/health live, in-process rate limits, audit-log activity feed; Sentry + structured logs + uptime monitor still pending |
-| 10. Production hardening | ⬜ not started |
-| 11. Pre-event ops | 🟡 partial — /app/preflight live; organizer onboarding wizard + i18n still pending |
-| 12. Day-of operations | ⬜ not started |
+| 3. Secure scan flow | ✅ shipped (code) — TOTP per checkpoint, in-process rate limits, HMAC-signed scan URLs, rejected-scan audit rows; **blocked:** swap in-process limiter for Vercel KV/Upstash (needs KV creds) |
+| 4. Badge contract | 🟡 partial — Solidity + 15 Foundry tests, do-it-yourself self-audit (clean), on-chain already-minted detection, badge metadata endpoint; **blocked:** deploy to Base Sepolia (funded key) + KMS signer |
+| 5. Prize desk on-chain | ✅ shipped — on-chain verify, atomic stock decrement, eligibility-rule engine, duplicate-redemption flag, offline cache, printable receipt |
+| 6. Booth-staff kiosk | ✅ shipped — rotating TOTP, secret rotation, recent scans, pause/resume checkpoint, "help me" staff alerts surfaced on overview |
+| 7. Pair fragments | ✅ shipped — fragments schema, A/B issuance with balancing, /play/pair combine screen + /api/play/pair, cheating-report flag |
+| 8. Sponsor analytics | ✅ shipped (code) — real-DB report with privacy scoping, lead consent opt-in, talk-through metric, hourly rollup, CSV export, revocable share links; **ops:** wire Vercel Cron + CRON_SECRET |
+| 9. Observability | ✅ shipped (code) — /api/health, structured JSON logging, metrics counters, env-gated Sentry wrapper, k6 load script; **blocked:** Sentry DSN + log drain + uptime monitor (accounts) |
+| 10. Production hardening | 🟡 partial — security headers + CSP (smoke-tested), cookie audit, GDPR export/erasure, privacy notice, npm audit; **pending:** a11y/Lighthouse pass, external pen-test + contract audit, Dependabot/gitleaks (repo settings) |
+| 11. Pre-event ops | ✅ shipped — /app/preflight, organizer onboarding wizard, dress-rehearsal mode, operator playbook + booth/prize one-pagers; i18n deferred (single-locale pilot) |
+| 12. Day-of operations | ✅ shipped (code) — /app/live dashboard (scans/min, reject rate, queue depths, contract pause read), post-event report generator, incident runbook; hot-swap drills are an ops exercise |
 
 ---
 
