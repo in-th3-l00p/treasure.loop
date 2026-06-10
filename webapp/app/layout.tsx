@@ -42,11 +42,23 @@ export default function RootLayout({
         baseTheme: dark,
         variables: {
           colorPrimary: "oklch(73% 0.17 296)",
+          colorPrimaryForeground: "oklch(98% 0.005 286)",
           colorBackground: "transparent",
-          colorInputBackground: "oklch(14% 0.004 286)",
+          // Clerk v7 variable names. The older colorText / colorTextSecondary
+          // / colorInputBackground are ignored by newer components (e.g. the
+          // org-create task screen), which then fell back to dark defaults.
+          colorForeground: "oklch(96% 0.004 286)",
+          colorMutedForeground: "oklch(70% 0.006 286)",
+          colorMuted: "oklch(20% 0.01 286)",
+          colorInput: "oklch(21% 0.012 286)",
+          colorInputForeground: "oklch(96% 0.004 286)",
+          colorBorder: "oklch(80% 0.03 300 / 0.22)",
+          colorRing: "oklch(73% 0.17 296 / 0.4)",
+          // Keep the legacy names too for any component still reading them.
+          colorInputBackground: "oklch(21% 0.012 286)",
           colorInputText: "oklch(96% 0.004 286)",
           colorText: "oklch(96% 0.004 286)",
-          colorTextSecondary: "oklch(62% 0.004 286)",
+          colorTextSecondary: "oklch(70% 0.006 286)",
           colorDanger: "oklch(64% 0.18 25)",
           colorSuccess: "oklch(72% 0.16 160)",
           colorNeutral: "oklch(96% 0.002 286)",

@@ -378,7 +378,15 @@ p {
   display: flex;
   flex-wrap: wrap;
   gap: 0.7rem;
-  margin-bottom: 2.6rem;
+  margin-bottom: 1rem;
+}
+
+.hero-actions-note {
+  margin-bottom: 2.4rem;
+  max-width: 30rem;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: color-mix(in oklch, currentColor 58%, transparent);
 }
 
 .primary-action,
@@ -1434,10 +1442,11 @@ iframe[src*="accounts.dev/"][src*="keyless"] {
   display: none !important;
 }
 
-/* Inputs: hand control back to the variables we set in appearance. */
+/* Inputs: a clearly elevated surface + visible border so fields don't
+   melt into the near-black page background. */
 .cl-formFieldInput {
-  background: oklch(14% 0.004 286) !important;
-  border: 1px solid var(--border) !important;
+  background: oklch(21% 0.012 286) !important;
+  border: 1px solid oklch(80% 0.03 300 / 0.22) !important;
   color: oklch(96% 0.004 286) !important;
   height: 36px !important;
   padding: 0 0.75rem !important;
@@ -1504,30 +1513,39 @@ iframe[src*="accounts.dev/"][src*="keyless"] {
 /* Logo / file uploader (CreateOrganization, OrganizationProfile). These
    Clerk elements weren't covered, so they rendered with dim defaults. */
 .cl-fileDropAreaBox {
-  background: oklch(14% 0.004 286 / 0.5) !important;
-  border: 1px dashed var(--border) !important;
+  background: oklch(17% 0.008 286) !important;
+  border: 1px dashed oklch(80% 0.03 300 / 0.22) !important;
   border-radius: 0.5rem !important;
 }
 .cl-fileDropAreaIconBox {
-  background: oklch(20% 0.004 286) !important;
+  background: oklch(24% 0.012 286) !important;
 }
 .cl-fileDropAreaIcon {
-  color: oklch(72% 0.01 286) !important;
+  color: oklch(78% 0.01 286) !important;
 }
 .cl-fileDropAreaHint,
 .cl-fileDropAreaFooterHint {
-  color: oklch(64% 0.004 286) !important;
+  color: oklch(68% 0.004 286) !important;
   font-size: 11px !important;
 }
-.cl-fileDropAreaButtonPrimary {
-  background: oklch(14% 0.004 286 / 0.6) !important;
-  border: 1px solid var(--border) !important;
+/* Upload / Remove and other secondary buttons inside Clerk cards. */
+.cl-fileDropAreaButtonPrimary,
+.cl-avatarImageActionsUpload,
+.cl-avatarImageActionsRemove,
+.cl-formButtonReset,
+.cl-button__secondary {
+  background: oklch(24% 0.012 286) !important;
+  border: 1px solid oklch(80% 0.03 300 / 0.22) !important;
   color: oklch(96% 0.004 286) !important;
   text-transform: none !important;
   box-shadow: none !important;
 }
-.cl-fileDropAreaButtonPrimary:hover {
-  background: oklch(18% 0.004 286 / 0.8) !important;
+.cl-fileDropAreaButtonPrimary:hover,
+.cl-avatarImageActionsUpload:hover,
+.cl-avatarImageActionsRemove:hover,
+.cl-formButtonReset:hover,
+.cl-button__secondary:hover {
+  background: oklch(28% 0.014 286) !important;
 }
 
 /* Generic hint / secondary text inside Clerk cards we don't target
