@@ -8,42 +8,34 @@ import {
   ClipboardCheckIcon,
   GaugeIcon,
   GiftIcon,
-  LifeBuoyIcon,
-  MapPinnedIcon,
   QrCodeIcon,
   RouteIcon,
   SearchIcon,
-  SettingsIcon,
-  ShieldCheckIcon,
   TicketIcon,
   UserPlus2Icon,
-  UsersIcon,
 } from "lucide-react"
 
-import { event } from "@/lib/mock-data"
+import { eventStatusLabel } from "@/components/product/status"
 import { cn } from "@/lib/utils"
 
-import { CommandPalette } from "./command-palette"
+import { CommandPalette, type PaletteData } from "./command-palette"
 
-const primaryNav = [
+export interface ShellEvent {
+  name: string
+  status: string
+}
+
+const manageNav = [
   { name: "Overview", href: "/app", icon: GaugeIcon },
   { name: "Routes", href: "/app/routes", icon: RouteIcon },
-  { name: "Checkpoints", href: "/app/checkpoints", icon: MapPinnedIcon },
   { name: "Sponsors", href: "/app/sponsors", icon: TicketIcon },
-  { name: "Players", href: "/app/players", icon: UsersIcon },
   { name: "Team", href: "/app/team", icon: UserPlus2Icon },
 ]
 
 const opsNav = [
   { name: "Prize desk", href: "/app/prize-desk", icon: GiftIcon },
   { name: "Booth", href: "/app/booth", icon: QrCodeIcon },
-  { name: "Verification", href: "/app/verification", icon: ShieldCheckIcon },
   { name: "Preflight", href: "/app/preflight", icon: ClipboardCheckIcon },
-]
-
-const footerNav = [
-  { name: "Settings", href: "/app/settings", icon: SettingsIcon },
-  { name: "Support", href: "/app/support", icon: LifeBuoyIcon },
 ]
 
 function NavItem({
@@ -84,7 +76,7 @@ function NavSection({
   reachable: Set<string>
   isActive: (href: string) => boolean
 }) {
-  const visible = items.filter((i) => reachable.has(i.href) || !reachableKnowsAbout(i.href, reachable))
+  const visible = items.filter((i) => reachable.has(i.href))
   if (visible.length === 0) return null
   return (
     <div className="grid gap-0.5">
@@ -105,20 +97,16 @@ function NavSection({
   )
 }
 
-// If `reachable` was built from APP_ROUTES, it only mentions routes whose
-// policy was declared. For routes the policy module doesn't know about
-// (e.g. /app/settings) we keep them visible by default — same as the
-// middleware fallback.
-function reachableKnowsAbout(href: string, reachable: Set<string>): boolean {
-  return reachable.has(href) || Array.from(reachable).some((h) => href.startsWith(`${h}/`))
-}
-
 export function AppShell({
   children,
   reachable,
+  event,
+  palette,
 }: {
   children: React.ReactNode
   reachable: Set<string>
+  event: ShellEvent | null
+  palette: PaletteData
 }) {
   const pathname = usePathname()
   const [paletteOpen, setPaletteOpen] = useState(false)
@@ -139,6 +127,8 @@ export function AppShell({
     if (href === "/app") return pathname === "/app"
     return pathname === href || pathname.startsWith(`${href}/`)
   }
+
+  const live = event?.status === "live" || event?.status === "live_rehearsal"
 
   return (
     <div className="product-shell flex min-h-screen">
@@ -177,7 +167,7 @@ export function AppShell({
           <button
             type="button"
             onClick={() => setPaletteOpen(true)}
-            className="flex w-full items-center gap-2 rounded-md border border-sidebar-border bg-sidebar-accent/50 px-2 py-1.5 text-left text-[12px] text-sidebar-foreground/55 transition-colors hover:border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-foreground"
+            className="flex w-full items-center gap-2 rounded-md border border-sidebar-border bg-sidebar-accent/50 px-2 py-1.5 text-left text-[12px] text-sidebar-foreground/55 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
           >
             <SearchIcon className="size-3.5 text-sidebar-foreground/40" />
             <span className="flex-1">Search</span>
@@ -188,7 +178,7 @@ export function AppShell({
         <nav className="flex-1 overflow-y-auto px-3 pt-1 pb-4">
           <NavSection
             label="Manage"
-            items={primaryNav}
+            items={manageNav}
             reachable={reachable}
             isActive={isActive}
           />
@@ -201,19 +191,7 @@ export function AppShell({
         </nav>
 
         <div className="px-3 pb-4">
-          <div className="grid gap-0.5">
-            {footerNav.map((item) => (
-              <NavItem
-                key={item.name}
-                href={item.href}
-                icon={item.icon}
-                active={isActive(item.href)}
-              >
-                {item.name}
-              </NavItem>
-            ))}
-          </div>
-          <div className="mt-3 flex items-center gap-2.5 px-2 pt-3">
+          <div className="flex items-center gap-2.5 border-t border-sidebar-border px-2 pt-4">
             <UserButton
               appearance={{
                 elements: {
@@ -231,21 +209,28 @@ export function AppShell({
 
       <main className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-10 flex h-12 items-center justify-between gap-4 border-b border-border bg-background/85 px-6 backdrop-blur-md lg:px-10">
-          <Crumb pathname={pathname} />
+          <Crumb pathname={pathname} eventName={event?.name ?? "No event"} />
           <div className="flex items-center gap-3 text-xs">
             <button
               type="button"
               onClick={() => setPaletteOpen(true)}
-              className="hidden items-center gap-2 rounded-md border border-border px-2 py-1 text-muted-foreground transition-colors hover:border-border hover:text-foreground lg:flex"
+              className="hidden items-center gap-2 rounded-md border border-border px-2 py-1 text-muted-foreground transition-colors hover:text-foreground lg:flex"
             >
               <SearchIcon className="size-3" />
               <span>Jump to…</span>
               <Kbd>⌘K</Kbd>
             </button>
-            <span className="flex items-center gap-1.5 text-muted-foreground">
-              <span className="size-1.5 rounded-full bg-emerald-400" />
-              Live rehearsal
-            </span>
+            {event && (
+              <span
+                className={cn(
+                  "flex items-center gap-2",
+                  live ? "text-emerald-400/90" : "text-muted-foreground"
+                )}
+              >
+                <span className="status-dot" />
+                {eventStatusLabel[event.status] ?? event.status}
+              </span>
+            )}
           </div>
         </header>
         <div className="flex-1">{children}</div>
@@ -255,6 +240,7 @@ export function AppShell({
         open={paletteOpen}
         onOpenChange={setPaletteOpen}
         reachable={reachable}
+        data={palette}
       />
     </div>
   )
@@ -268,7 +254,13 @@ function Kbd({ children }: { children: React.ReactNode }) {
   )
 }
 
-function Crumb({ pathname }: { pathname: string }) {
+function Crumb({
+  pathname,
+  eventName,
+}: {
+  pathname: string
+  eventName: string
+}) {
   const segments = pathname.split("/").filter(Boolean)
   const label =
     segments.length === 1
@@ -281,10 +273,12 @@ function Crumb({ pathname }: { pathname: string }) {
           .join(" / ")
 
   return (
-    <div className="flex items-center gap-2 text-[13px]">
-      <span className="text-muted-foreground">{event.name.split(":")[0]}</span>
+    <div className="flex min-w-0 items-center gap-2 text-[13px]">
+      <span className="truncate text-muted-foreground">
+        {eventName.split(":")[0]}
+      </span>
       <span className="text-muted-foreground/40">/</span>
-      <span className="text-foreground">{label}</span>
+      <span className="shrink-0 text-foreground">{label}</span>
     </div>
   )
 }

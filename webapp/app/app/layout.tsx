@@ -1,9 +1,14 @@
-import { auth, clerkClient } from "@clerk/nextjs/server"
+import { clerkClient } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation"
 
 import { requireMember } from "@/lib/auth-server"
 import { APP_ROUTES, type AuthSubject } from "@/lib/authz"
 import { ensureEventForOrg } from "@/lib/event-provisioning"
+import {
+  getActiveEvent,
+  listCheckpoints,
+  listSponsors,
+} from "@/lib/event-queries"
 
 import { AppShell } from "./_components/app-shell"
 
@@ -19,8 +24,32 @@ export default async function AppLayout({
   // the event row now so the operator never sees an empty console.
   await ensureEventForOrgIfNeeded(subject.orgId)
 
-  const reachable = visibleRoutes(subject)
-  return <AppShell reachable={reachable}>{children}</AppShell>
+  const event = await getActiveEvent(subject.orgId)
+  const [checkpoints, sponsors] = event
+    ? await Promise.all([listCheckpoints(event.id), listSponsors(event.id)])
+    : [[], []]
+
+  return (
+    <AppShell
+      reachable={visibleRoutes(subject)}
+      event={event ? { name: event.name, status: event.status } : null}
+      palette={{
+        checkpoints: checkpoints.map((cp) => ({
+          id: cp.id,
+          name: cp.name,
+          sponsorName: cp.sponsorName,
+          status: cp.status,
+        })),
+        sponsors: sponsors.map((s) => ({
+          id: s.id,
+          name: s.name,
+          tier: s.tier,
+        })),
+      }}
+    >
+      {children}
+    </AppShell>
+  )
 }
 
 async function ensureEventForOrgIfNeeded(orgId: string) {
@@ -38,13 +67,5 @@ async function ensureEventForOrgIfNeeded(orgId: string) {
 }
 
 function visibleRoutes(subject: AuthSubject): Set<string> {
-  return new Set(
-    APP_ROUTES.filter((r) => r.check(subject)).map((r) => r.href)
-  )
+  return new Set(APP_ROUTES.filter((r) => r.check(subject)).map((r) => r.href))
 }
-
-// Internal: surface `auth()` so the helper can grab session claims if
-// the org-detection logic ever needs to inspect them directly. Not
-// currently used but kept here so future code doesn't import a new
-// path. Strip if linter complains.
-void auth
