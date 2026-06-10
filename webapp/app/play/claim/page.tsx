@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useCallback, useState } from "react"
 import { ConnectButton } from "@rainbow-me/rainbowkit"
-import { type Hex } from "viem"
+import { type Hex, parseEventLogs } from "viem"
 import { useAccount, usePublicClient, useWriteContract } from "wagmi"
 import {
   AlertTriangleIcon,
@@ -54,6 +54,7 @@ export default function ClaimPage() {
 
   const [state, setState] = useState<MintState>("idle")
   const [error, setError] = useState<string | null>(null)
+  const [tokenId, setTokenId] = useState<number | null>(null)
 
   const eventTitle = playEvent?.name.split(":")[0] ?? "TreasureLoop"
   const network = playEvent?.network ?? "base-sepolia"
@@ -106,11 +107,25 @@ export default function ClaimPage() {
         chainId: permit.chainId,
       })
       setState("confirming")
+      let mintedTokenId: number | undefined
       if (publicClient) {
-        await publicClient.waitForTransactionReceipt({ hash })
+        const receipt = await publicClient.waitForTransactionReceipt({ hash })
+        const transfers = parseEventLogs({
+          abi: BADGE_ABI,
+          logs: receipt.logs,
+          eventName: "Transfer",
+        })
+        const id = transfers[0]?.args.tokenId
+        if (id !== undefined) {
+          mintedTokenId = Number(id)
+          setTokenId(Number(id))
+        }
       }
       setState("recording")
-      await confirmMint.mutateAsync({ txHash: hash as Hex })
+      await confirmMint.mutateAsync({
+        txHash: hash as Hex,
+        tokenId: mintedTokenId,
+      })
       setState("done")
     } catch (e) {
       const code = (e as Error & { code?: string }).code
@@ -243,7 +258,8 @@ export default function ClaimPage() {
 
           {minted && txHash && (
             <p className="text-center text-[11px] text-muted-foreground">
-              Confirmed on chain ·{" "}
+              {tokenId !== null ? `Token #${tokenId} · ` : ""}Confirmed on
+              chain ·{" "}
               <a
                 href={explorerTxUrl(network, txHash)}
                 className="text-primary underline-offset-4 hover:underline"

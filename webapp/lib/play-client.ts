@@ -150,6 +150,7 @@ export async function requestMintPermit(): Promise<MintPermitResponse> {
 
 export async function confirmMint(args: {
   txHash: Hex
+  tokenId?: number
 }): Promise<{ ok: boolean; badgeMintedAt: number; txHash: Hex }> {
   return jsonFetch("/api/play/mint-confirm", {
     method: "POST",
