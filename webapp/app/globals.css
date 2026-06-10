@@ -1488,11 +1488,63 @@ iframe[src*="accounts.dev/"][src*="keyless"] {
 
 /* Labels above inputs */
 .cl-formFieldLabel {
-  color: oklch(62% 0.004 286) !important;
+  color: oklch(72% 0.006 286) !important;
   font-size: 11px !important;
   font-weight: 400 !important;
   letter-spacing: 0 !important;
   margin-bottom: 0.25rem !important;
+}
+
+/* Placeholder text was nearly invisible on the dark inputs. */
+.cl-formFieldInput::placeholder {
+  color: oklch(56% 0.004 286) !important;
+  opacity: 1 !important;
+}
+
+/* Logo / file uploader (CreateOrganization, OrganizationProfile). These
+   Clerk elements weren't covered, so they rendered with dim defaults. */
+.cl-fileDropAreaBox {
+  background: oklch(14% 0.004 286 / 0.5) !important;
+  border: 1px dashed var(--border) !important;
+  border-radius: 0.5rem !important;
+}
+.cl-fileDropAreaIconBox {
+  background: oklch(20% 0.004 286) !important;
+}
+.cl-fileDropAreaIcon {
+  color: oklch(72% 0.01 286) !important;
+}
+.cl-fileDropAreaHint,
+.cl-fileDropAreaFooterHint {
+  color: oklch(64% 0.004 286) !important;
+  font-size: 11px !important;
+}
+.cl-fileDropAreaButtonPrimary {
+  background: oklch(14% 0.004 286 / 0.6) !important;
+  border: 1px solid var(--border) !important;
+  color: oklch(96% 0.004 286) !important;
+  text-transform: none !important;
+  box-shadow: none !important;
+}
+.cl-fileDropAreaButtonPrimary:hover {
+  background: oklch(18% 0.004 286 / 0.8) !important;
+}
+
+/* Generic hint / secondary text inside Clerk cards we don't target
+   individually — keep it readable on the dark surface. */
+.cl-formFieldHintText,
+.cl-formFieldRow p,
+.cl-identityPreviewText {
+  color: oklch(64% 0.004 286) !important;
+}
+
+/* Disabled primary button must still read clearly (it's the default
+   state on an empty form). */
+.cl-formButtonPrimary:disabled,
+.cl-formButtonPrimary[disabled] {
+  background: oklch(73% 0.17 296 / 0.55) !important;
+  color: oklch(98% 0.005 286 / 0.9) !important;
+  opacity: 1 !important;
 }
 
 /* Secondary text + footer link */
