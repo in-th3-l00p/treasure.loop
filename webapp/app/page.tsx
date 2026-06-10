@@ -301,7 +301,8 @@ export default function Home() {
           <span>TreasureLoop</span>
         </a>
         <span className="footer-meta">
-          Built in Cluj-Napoca · Made for conference floors
+          Built in Cluj-Napoca · Made for conference floors ·{" "}
+          <Link href="/privacy">Privacy</Link>
         </span>
       </footer>
     </main>

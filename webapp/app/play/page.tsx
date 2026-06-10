@@ -228,6 +228,18 @@ export default function PlayLanding() {
             We never charge gas to play. Mint happens on completion.
           </p>
 
+          <p className="text-center text-[11px] text-muted-foreground/80">
+            Connecting stores your wallet address, scans, and redemptions
+            for this event. See our{" "}
+            <Link
+              href="/privacy"
+              className="text-muted-foreground underline underline-offset-2 hover:text-foreground"
+            >
+              privacy notice
+            </Link>
+            .
+          </p>
+
           <div className="flex items-center justify-center gap-4 pt-3 font-mono text-[10px] tracking-[0.14em] text-muted-foreground/60 uppercase">
             {playEvent && <span>{networkLabel(playEvent.network)}</span>}
             {checkpointCount !== null && (
