@@ -16,9 +16,10 @@ import {
 } from "lucide-react"
 
 import { BADGE_ABI } from "@/lib/badge-contract"
-import { explorerTxUrl, networkLabel } from "@/lib/play-client"
+import { explorerTxUrl, isAlreadyMinted, networkLabel } from "@/lib/play-client"
 import {
   useConfirmMint,
+  useOnchainBadgeHeld,
   usePlayEvent,
   useProgress,
   useRequestMintPermit,
@@ -42,6 +43,7 @@ export default function ClaimPage() {
   const { data: progress, isLoading: loadingProgress, error: progressError } =
     useProgress()
   const { data: playEvent } = usePlayEvent()
+  const { held: onchainHeld } = useOnchainBadgeHeld(address)
   const requestPermit = useRequestMintPermit()
   const confirmMint = useConfirmMint()
 
@@ -65,11 +67,17 @@ export default function ClaimPage() {
 
   // Reset to a state derived from current progress on every render —
   // no effect, no flicker. Async transitions below override it.
+  //
+  // On-chain truth wins in the already-minted direction: if the wallet
+  // holds the badge we render "done" even when the server DB has no
+  // mint record (or failed to load), so a wiped/rolled-back DB can't
+  // strand a player who already minted.
   const derivedState: MintState = (() => {
+    if (isAlreadyMinted({ badgeMintedAt: progress?.badgeMintedAt, onchainHeld }))
+      return "done"
     if (progressError) return "error"
     if (loadingProgress) return "idle"
     if (!progress) return "idle"
-    if (progress.badgeMintedAt) return "done"
     if (!progress.finished) return "ineligible"
     return "ready"
   })()

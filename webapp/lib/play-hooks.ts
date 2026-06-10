@@ -1,7 +1,15 @@
 "use client"
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { type Address } from "viem"
+import { useReadContract } from "wagmi"
 
+import {
+  BADGE_ABI,
+  BADGE_CHAIN,
+  BADGE_CONTRACT_ADDRESS,
+  BADGE_CONTRACT_CONFIGURED,
+} from "./badge-contract"
 import {
   type MintPermitResponse,
   type PublicProgress,
@@ -102,4 +110,33 @@ export function useConfirmMint() {
     mutationFn: confirmMint,
     onSuccess: () => qc.invalidateQueries({ queryKey: playKeys.progress }),
   })
+}
+
+/**
+ * On-chain "does this wallet already hold a badge" check.
+ *
+ * Reads `balanceOf(address)` from the badge ERC-721 directly so the
+ * claim page can detect an already-minted wallet even if the server DB
+ * lost its mint record. Returns `null` (rather than false) when the
+ * contract isn't configured or no wallet is connected, so callers can
+ * tell "no badge" apart from "we don't know" and fall back to the
+ * server-driven state without surfacing errors.
+ */
+export function useOnchainBadgeHeld(address: Address | undefined): {
+  held: boolean | null
+  isLoading: boolean
+} {
+  const enabled = BADGE_CONTRACT_CONFIGURED && !!address
+  const { data, isLoading } = useReadContract({
+    address: BADGE_CONTRACT_ADDRESS,
+    abi: BADGE_ABI,
+    functionName: "balanceOf",
+    args: address ? [address] : undefined,
+    chainId: BADGE_CHAIN.id,
+    query: { enabled },
+  })
+
+  if (!enabled) return { held: null, isLoading: false }
+  if (typeof data !== "bigint") return { held: null, isLoading }
+  return { held: data > BigInt(0), isLoading }
 }

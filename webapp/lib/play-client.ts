@@ -111,6 +111,23 @@ export function networkLabel(network: string): string {
     .join(" ")
 }
 
+/**
+ * Whether the player should be treated as already-minted.
+ *
+ * The server DB (`badgeMintedAt`) and the chain (`onchainHeld`) are two
+ * independent records of the same fact. We trust either one in the
+ * "already minted" direction: if the chain says the wallet holds the
+ * badge we honour it even when the DB has no record (resilience to a
+ * server wipe / rollback), and vice versa. When the badge contract
+ * isn't configured `onchainHeld` is null and only the DB matters.
+ */
+export function isAlreadyMinted(args: {
+  badgeMintedAt: number | null | undefined
+  onchainHeld: boolean | null
+}): boolean {
+  return Boolean(args.badgeMintedAt) || args.onchainHeld === true
+}
+
 // ─────────────────── Game state ───────────────────
 
 export async function getProgress(): Promise<{
