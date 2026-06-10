@@ -272,7 +272,11 @@ export function OnboardingWizard({
                 />
               </Field>
               <Field label="Role">
-                <Select value={role} onValueChange={(v) => setRole(v as Role)}>
+                <Select
+                  value={role}
+                  onValueChange={(v) => setRole(v as Role)}
+                  items={roleOptions}
+                >
                   <SelectTrigger className="h-9 w-full text-sm sm:w-40">
                     <SelectValue />
                   </SelectTrigger>

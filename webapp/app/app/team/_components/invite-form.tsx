@@ -78,7 +78,11 @@ export function InviteForm() {
 
       <label className="grid gap-1.5">
         <span className="text-[11px] text-muted-foreground">Role</span>
-        <Select value={role} onValueChange={(v) => setRole(v as Role)}>
+        <Select
+          value={role}
+          onValueChange={(v) => setRole(v as Role)}
+          items={roleOptions}
+        >
           <SelectTrigger className="h-9 text-sm">
             <SelectValue />
           </SelectTrigger>

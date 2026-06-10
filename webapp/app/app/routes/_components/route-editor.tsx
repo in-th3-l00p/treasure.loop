@@ -51,6 +51,20 @@ const clueTypeLabel: Record<string, string> = {
   nfc: "NFC tag",
 }
 
+// Base UI Select renders the selected item's label in the trigger only when
+// the Root is given `items` (the popup items aren't mounted while closed).
+const clueTypeItems = Object.entries(clueTypeLabel).map(([value, label]) => ({
+  value,
+  label,
+}))
+
+const STATUS_ITEMS = [
+  { value: "healthy", label: "Healthy" },
+  { value: "busy", label: "Busy" },
+  { value: "needs_staff", label: "Needs staff" },
+  { value: "offline", label: "Offline" },
+]
+
 interface SponsorOption {
   id: string
   name: string
@@ -328,6 +342,11 @@ function CheckpointDetail({
   const [rotating, startRotate] = useTransition()
   const [feedback, setFeedback] = useState<string | null>(null)
 
+  const sponsorItems = [
+    { value: "none", label: "Unassigned" },
+    ...sponsors.map((s) => ({ value: s.id, label: s.name })),
+  ]
+
   const dirty =
     name !== checkpoint.name ||
     area !== (checkpoint.area ?? "") ||
@@ -424,12 +443,13 @@ function CheckpointDetail({
               <Select
                 value={clueType}
                 onValueChange={(v) => v && setClueType(v)}
+                items={clueTypeItems}
               >
-                <SelectTrigger className="h-9 w-full text-sm">
+                <SelectTrigger className="h-9 w-full min-w-0 text-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(clueTypeLabel).map(([value, label]) => (
+                  {clueTypeItems.map(({ value, label }) => (
                     <SelectItem key={value} value={value}>
                       {label}
                     </SelectItem>
@@ -441,15 +461,15 @@ function CheckpointDetail({
               <Select
                 value={sponsorId}
                 onValueChange={(v) => v && setSponsorId(v)}
+                items={sponsorItems}
               >
-                <SelectTrigger className="h-9 w-full text-sm">
+                <SelectTrigger className="h-9 w-full min-w-0 text-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Unassigned</SelectItem>
-                  {sponsors.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.name}
+                  {sponsorItems.map(({ value, label }) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -459,15 +479,17 @@ function CheckpointDetail({
               <Select
                 value={status}
                 onValueChange={(v) => v && setStatus(v)}
+                items={STATUS_ITEMS}
               >
-                <SelectTrigger className="h-9 w-full text-sm">
+                <SelectTrigger className="h-9 w-full min-w-0 text-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="healthy">Healthy</SelectItem>
-                  <SelectItem value="busy">Busy</SelectItem>
-                  <SelectItem value="needs_staff">Needs staff</SelectItem>
-                  <SelectItem value="offline">Offline</SelectItem>
+                  {STATUS_ITEMS.map(({ value, label }) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </FormRow>

@@ -11,6 +11,19 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
+/** Friendly label for a Clerk org role (built-in or our custom roles). */
+function roleLabel(role: string): string {
+  const map: Record<string, string> = {
+    "org:admin": "Organizer",
+    "org:organizer": "Organizer",
+    "org:prize_desk": "Prize desk",
+    "org:booth_staff": "Booth staff",
+    "org:sponsor": "Sponsor",
+    "org:member": "Member",
+  }
+  return map[role] ?? role.replace(/^org:/, "").replace(/_/g, " ")
+}
+
 interface Member {
   id: string
   userId: string
@@ -73,7 +86,7 @@ export function TeamTable({
                   {m.email}
                 </TableCell>
                 <TableCell className="px-0 py-2.5 text-right text-xs text-muted-foreground">
-                  {m.role}
+                  {roleLabel(m.role)}
                 </TableCell>
               </TableRow>
             ))}
@@ -95,7 +108,9 @@ export function TeamTable({
                 <span className="truncate font-mono text-xs text-muted-foreground">
                   {i.email}
                 </span>
-                <span className="text-xs text-muted-foreground">{i.role}</span>
+                <span className="text-xs text-muted-foreground">
+                  {roleLabel(i.role)}
+                </span>
                 <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                   <ClockIcon className="size-3" /> Awaiting accept
                 </span>
