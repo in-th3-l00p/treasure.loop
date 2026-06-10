@@ -86,6 +86,20 @@ export const events = pgTable(
     network: text("network").notNull().default("base-sepolia"),
     badgeContractAddress: varchar("badge_contract_address", { length: 42 }),
     status: text("status").notNull().default("draft"),
+    /**
+     * Dress-rehearsal mode. When true, the badge mint path refuses to
+     * issue a production mint permit (the mint-permit route returns
+     * `rehearsal-mode` and the claim screen shows a "badges aren't
+     * minted on chain" state). The operator console surfaces a visible
+     * "Rehearsal" indicator. Defaults false (a real, live event).
+     */
+    rehearsal: boolean("rehearsal").notNull().default(false),
+    /**
+     * When the organizer finished (or skipped) the onboarding wizard.
+     * Null until then — that's how `/app` decides whether to surface the
+     * guided setup flow. A configured event never gets nagged again.
+     */
+    onboardedAt: timestamp("onboarded_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

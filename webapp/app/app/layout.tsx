@@ -32,7 +32,15 @@ export default async function AppLayout({
   return (
     <AppShell
       reachable={visibleRoutes(subject)}
-      event={event ? { name: event.name, status: event.status } : null}
+      event={
+        event
+          ? {
+              name: event.name,
+              status: event.status,
+              rehearsal: event.rehearsal,
+            }
+          : null
+      }
       palette={{
         checkpoints: checkpoints.map((cp) => ({
           id: cp.id,

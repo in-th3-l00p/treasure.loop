@@ -24,6 +24,7 @@ import { CommandPalette, type PaletteData } from "./command-palette"
 export interface ShellEvent {
   name: string
   status: string
+  rehearsal: boolean
 }
 
 const manageNav = [
@@ -222,6 +223,12 @@ export function AppShell({
               <span>Jump to…</span>
               <Kbd>⌘K</Kbd>
             </button>
+            {event?.rehearsal && (
+              <span className="flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 font-mono text-[10px] tracking-[0.12em] text-primary uppercase">
+                <span className="status-dot" />
+                Rehearsal
+              </span>
+            )}
             {event && (
               <span
                 className={cn(

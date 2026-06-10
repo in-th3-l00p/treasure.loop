@@ -30,6 +30,7 @@ import { PlayCta } from "../_components/play-cta"
 type MintState =
   | "idle"
   | "ineligible"
+  | "rehearsal"
   | "ready"
   | "requesting-permit"
   | "awaiting-signature"
@@ -60,6 +61,7 @@ export default function ClaimPage() {
 
   const eventTitle = playEvent?.name.split(":")[0] ?? "TreasureLoop"
   const network = playEvent?.network ?? "base-sepolia"
+  const rehearsal = playEvent?.rehearsal ?? false
 
   const shortAddress = address
     ? `${address.slice(0, 6)}…${address.slice(-4)}`
@@ -79,6 +81,10 @@ export default function ClaimPage() {
     if (loadingProgress) return "idle"
     if (!progress) return "idle"
     if (!progress.finished) return "ineligible"
+    // Dress-rehearsal: the player finished, but no badge is minted on
+    // chain. We surface a clear rehearsal state instead of a mint CTA so
+    // the screen never implies an on-chain mint that won't happen.
+    if (rehearsal) return "rehearsal"
     return "ready"
   })()
 
@@ -142,7 +148,11 @@ export default function ClaimPage() {
       setState("done")
     } catch (e) {
       const code = (e as Error & { code?: string }).code
-      if (code === "contract-not-configured") {
+      if (code === "rehearsal-mode") {
+        setError(
+          "This event is in dress-rehearsal mode — finisher badges aren't minted on chain."
+        )
+      } else if (code === "contract-not-configured") {
         setError(
           "Badge contract isn't deployed in this environment yet. Set NEXT_PUBLIC_BADGE_CONTRACT_ADDRESS and BADGE_SIGNER_PRIVATE_KEY."
         )
@@ -187,14 +197,18 @@ export default function ClaimPage() {
               ? "Badge minted."
               : effective === "ineligible"
                 ? "Keep going."
-                : "You closed the loop."}
+                : effective === "rehearsal"
+                  ? "Rehearsal complete."
+                  : "You closed the loop."}
           </h1>
           <p className="mx-auto max-w-xs text-sm leading-relaxed text-muted-foreground">
             {minted
               ? "Show this badge at the prize desk to claim your reward."
               : effective === "ineligible"
                 ? `Scan ${(progress?.total ?? 0) - (progress?.scanned.length ?? 0)} more checkpoint(s) before you can mint.`
-                : "Mint your finisher badge and show it at the prize desk to unlock your rewards."}
+                : effective === "rehearsal"
+                  ? "Rehearsal mode — finisher badges aren't minted on chain. You walked the full loop; the real mint goes live when the organizer ends rehearsal."
+                  : "Mint your finisher badge and show it at the prize desk to unlock your rewards."}
           </p>
         </div>
 
@@ -205,6 +219,21 @@ export default function ClaimPage() {
         />
 
         <div className="grid gap-2">
+          {effective === "rehearsal" ? (
+            <>
+              <div className="flex items-start gap-2 rounded-xl border border-primary/30 bg-primary/10 px-3 py-3 text-[12px] text-primary">
+                <AlertTriangleIcon className="mt-0.5 size-3.5 shrink-0" />
+                <p>
+                  This event is running in dress-rehearsal mode. No badge is
+                  minted on chain and nothing is written to your wallet.
+                </p>
+              </div>
+              <PlayCta href="/play/progress">
+                <CheckCircle2Icon className="size-4" />
+                Back to progress
+              </PlayCta>
+            </>
+          ) : (
           <ConnectButton.Custom>
             {({ openConnectModal, account, chain, mounted }) => {
               const connected = mounted && !!account && !!chain
@@ -254,6 +283,7 @@ export default function ClaimPage() {
               )
             }}
           </ConnectButton.Custom>
+          )}
 
           {error && (
             <div className="flex items-start gap-2 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[11px] text-rose-200">
@@ -352,6 +382,13 @@ function StatusPill({ state }: { state: MintState }) {
     return (
       <span className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
         Loop incomplete
+      </span>
+    )
+  }
+  if (state === "rehearsal") {
+    return (
+      <span className="font-mono text-[10px] tracking-[0.14em] text-primary uppercase">
+        Rehearsal
       </span>
     )
   }

@@ -40,6 +40,9 @@ async function main() {
       datesEnd: new Date("2026-07-19T18:00:00Z"),
       network: "base-sepolia",
       status: "live_rehearsal",
+      // The pilot is fully configured — don't nag it with the onboarding
+      // wizard. `rehearsal` (the dress-rehearsal mint flag) defaults false.
+      onboardedAt: new Date(),
       badgeContractAddress:
         process.env.NEXT_PUBLIC_BADGE_CONTRACT_ADDRESS ?? null,
     })

@@ -62,6 +62,22 @@ export async function currentEventId(): Promise<string> {
   return rows[0].id
 }
 
+/**
+ * Whether the given event is in dress-rehearsal mode.
+ *
+ * In rehearsal the mint-permit route refuses to sign a production
+ * permit, so no on-chain mint and no `badge_mints` row is ever created
+ * — the rehearsal is honest about not touching the chain.
+ */
+export async function isEventInRehearsal(eventId: string): Promise<boolean> {
+  const [row] = await storeDb
+    .select({ rehearsal: events.rehearsal })
+    .from(events)
+    .where(and(eq(events.id, eventId), isNull(events.archivedAt)))
+    .limit(1)
+  return row?.rehearsal ?? false
+}
+
 export interface PublicCheckpoint {
   id: string
   name: string
@@ -76,6 +92,8 @@ export interface PublicEventInfo {
   name: string
   venue: string | null
   network: string
+  /** True when the event is in dress-rehearsal — badges aren't minted on chain. */
+  rehearsal: boolean
   checkpoints: PublicCheckpoint[]
 }
 
@@ -91,6 +109,7 @@ export async function getPublicEvent(
       name: events.name,
       venue: events.venue,
       network: events.network,
+      rehearsal: events.rehearsal,
     })
     .from(events)
     .where(and(eq(events.id, eventId), isNull(events.archivedAt)))

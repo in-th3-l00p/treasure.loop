@@ -12,6 +12,7 @@ import { getPlayAddress } from "@/lib/play-session"
 import {
   currentEventId,
   getProgress,
+  isEventInRehearsal,
   totalCheckpoints,
 } from "@/lib/player-store"
 
@@ -43,6 +44,23 @@ export const POST = withRouteLogging(
   ctx.set({ actor: address })
 
   const eventId = await currentEventId()
+
+  // Dress-rehearsal: never issue a production permit. Honestly refuse so
+  // no on-chain mint and no `badge_mints` row is created. The claim
+  // screen renders a clear "Rehearsal mode — badges aren't minted on
+  // chain" state from this response.
+  if (await isEventInRehearsal(eventId)) {
+    increment(Metric.Mint, { outcome: "rehearsal" })
+    return NextResponse.json(
+      {
+        error: "rehearsal-mode",
+        message:
+          "This event is in dress-rehearsal mode — finisher badges aren't minted on chain.",
+      },
+      { status: 409 }
+    )
+  }
+
   const progress = await getProgress(eventId, address)
   if (!progress) {
     return NextResponse.json(

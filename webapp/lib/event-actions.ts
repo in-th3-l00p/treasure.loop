@@ -100,6 +100,76 @@ export async function updateEventSettings(input: {
   return { ok: true }
 }
 
+/**
+ * Toggle dress-rehearsal mode for the active event.
+ *
+ * In rehearsal, the mint-permit route refuses to issue a production
+ * permit (see `app/api/play/mint-permit/route.ts`), so no on-chain mint
+ * and no `badge_mints` row is ever created. Writes an audit row on every
+ * flip so the toggle is traceable.
+ */
+export async function setRehearsalMode(input: {
+  rehearsal: boolean
+}): Promise<ActionResult> {
+  const ctx = await getOperatorContext()
+  if (!ctx) return err("forbidden", "Sign in as an organizer.")
+  if (!hasRole(ctx.subject, [ROLES.ORGANIZER]))
+    return err("forbidden", "Organizers only.")
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(events)
+      .set({ rehearsal: input.rehearsal })
+      .where(eq(events.id, ctx.event.id))
+    await tx.insert(auditLog).values({
+      eventId: ctx.event.id,
+      actor: ctx.subject.userId ?? "unknown",
+      action: input.rehearsal
+        ? "event.rehearsal_enabled"
+        : "event.rehearsal_disabled",
+      target: ctx.event.id,
+      meta: { rehearsal: input.rehearsal },
+    })
+  })
+
+  revalidatePath("/app")
+  return { ok: true }
+}
+
+/**
+ * Mark the onboarding wizard finished (or skipped) for the active event.
+ * Sets `onboardedAt` so `/app` stops surfacing the guided setup flow.
+ * Idempotent: re-finishing keeps the original stamp.
+ */
+export async function completeOnboarding(input?: {
+  skipped?: boolean
+}): Promise<ActionResult> {
+  const ctx = await getOperatorContext()
+  if (!ctx) return err("forbidden", "Sign in as an organizer.")
+  if (!hasRole(ctx.subject, [ROLES.ORGANIZER]))
+    return err("forbidden", "Organizers only.")
+
+  // Only stamp once — a re-run never overwrites the first completion.
+  if (!ctx.event.onboardedAt) {
+    await db.transaction(async (tx) => {
+      await tx
+        .update(events)
+        .set({ onboardedAt: new Date() })
+        .where(and(eq(events.id, ctx.event.id), isNull(events.onboardedAt)))
+      await tx.insert(auditLog).values({
+        eventId: ctx.event.id,
+        actor: ctx.subject.userId ?? "unknown",
+        action: input?.skipped ? "event.onboarding_skipped" : "event.onboarded",
+        target: ctx.event.id,
+      })
+    })
+  }
+
+  revalidatePath("/app")
+  revalidatePath("/app/onboarding")
+  return { ok: true }
+}
+
 // ─────────────────────────── routes ───────────────────────────
 
 export async function createRoute(input: {

@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { redirect } from "next/navigation"
 import {
   ArrowUpRightIcon,
   CircleAlertIcon,
@@ -24,6 +25,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { requireMember } from "@/lib/auth-server"
+import { canConfigureEvent } from "@/lib/authz"
+import { RehearsalToggle } from "./_components/rehearsal-toggle"
 import {
   getActiveEvent,
   getOverviewKpis,
@@ -39,7 +42,8 @@ import { timeAgo } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
 export default async function OverviewPage() {
-  await requireMember()
+  const subject = await requireMember()
+  const isOrganizer = canConfigureEvent(subject)
   const event = await getActiveEvent()
   if (!event) {
     return (
@@ -48,6 +52,13 @@ export default async function OverviewPage() {
         webapp directory to create the pilot event.
       </PageEmpty>
     )
+  }
+
+  // A freshly provisioned event hasn't been onboarded. Send the organizer
+  // to the guided setup wizard; they can skip from there. Other roles
+  // (prize desk, booth, sponsor) just see the normal overview.
+  if (isOrganizer && !event.onboardedAt) {
+    redirect("/app/onboarding")
   }
 
   const [
@@ -77,6 +88,7 @@ export default async function OverviewPage() {
         title="Event overview"
         description="What is happening on the floor right now, and what needs your attention before the next wave."
       >
+        {isOrganizer && <RehearsalToggle rehearsal={event.rehearsal} />}
         <Link
           href="/app/preflight"
           className={cn(

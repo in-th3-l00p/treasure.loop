@@ -87,6 +87,8 @@ export interface PlayEvent {
   name: string
   venue: string | null
   network: string
+  /** True when the event is in dress-rehearsal — badges aren't minted on chain. */
+  rehearsal: boolean
   checkpoints: PlayCheckpoint[]
 }
 
