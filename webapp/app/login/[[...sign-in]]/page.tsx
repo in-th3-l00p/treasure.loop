@@ -2,8 +2,6 @@ import Link from "next/link"
 import { SignIn } from "@clerk/nextjs"
 import { ArrowLeftIcon } from "lucide-react"
 
-import { event } from "@/lib/mock-data"
-
 export default function SignInPage() {
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -39,9 +37,9 @@ export default function SignInPage() {
             </div>
 
             <dl className="grid gap-4 border-t border-border pt-5 text-sm sm:grid-cols-3">
-              <Stat label="Pilot event" value={event.name.split(":")[0]} />
-              <Stat label="Venue" value={event.venue} />
-              <Stat label="Network" value={event.walletNetwork} />
+              <Stat label="Checkpoints" value="Staffed sponsor booths" />
+              <Stat label="Completion" value="On-chain badge on Base" />
+              <Stat label="Rewards" value="Physical prize desk" />
             </dl>
           </div>
 
