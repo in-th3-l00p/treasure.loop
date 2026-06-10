@@ -64,6 +64,11 @@ export const rewardStatus = pgEnum("reward_status", [
   "minting",
 ])
 
+export const staffAlertStatus = pgEnum("staff_alert_status", [
+  "open",
+  "acknowledged",
+])
+
 // ───────────────────────────── events ─────────────────────────────
 
 export const events = pgTable(
@@ -181,6 +186,38 @@ export const staffAssignments = pgTable(
   },
   (t) => [
     uniqueIndex("staff_assignments_unique").on(t.checkpointId, t.userId),
+  ]
+)
+
+// ─────────────────────────── staff alerts ──────────────────────────
+//
+// "Help me" raises from a booth kiosk. An open alert surfaces in the
+// operator overview's "Needs attention" card; an organizer acknowledges
+// it to clear it. Soft state only — rows are kept for the audit trail.
+
+export const staffAlerts = pgTable(
+  "staff_alerts",
+  {
+    id: text("id").primaryKey().default(shortId("alrt")),
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    checkpointId: text("checkpoint_id")
+      .notNull()
+      .references(() => checkpoints.id, { onDelete: "cascade" }),
+    raisedBy: text("raised_by").notNull(),
+    kind: text("kind").notNull().default("help"),
+    message: text("message"),
+    status: staffAlertStatus("status").notNull().default("open"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    acknowledgedAt: timestamp("acknowledged_at", { withTimezone: true }),
+    acknowledgedBy: text("acknowledged_by"),
+  },
+  (t) => [
+    index("staff_alerts_event_status_idx").on(t.eventId, t.status),
+    index("staff_alerts_checkpoint_idx").on(t.checkpointId),
   ]
 )
 
@@ -325,3 +362,5 @@ export type Scan = typeof scans.$inferSelect
 export type BadgeMint = typeof badgeMints.$inferSelect
 export type RedemptionClaim = typeof redemptionClaims.$inferSelect
 export type Reward = typeof rewards.$inferSelect
+export type StaffAlert = typeof staffAlerts.$inferSelect
+export type NewStaffAlert = typeof staffAlerts.$inferInsert

@@ -9,6 +9,7 @@ import { increment, Metric } from "@/lib/metrics"
 import { getPlayAddress } from "@/lib/play-session"
 import {
   currentEventId,
+  isCheckpointOffline,
   isValidCheckpoint,
   recordScan,
 } from "@/lib/player-store"
@@ -35,6 +36,7 @@ interface ScanBody {
 type RejectReason =
   | "bad-url-token"
   | "unknown-checkpoint"
+  | "checkpoint-offline"
   | "invalid-code"
   | "checkpoint-not-configured"
   | "scan-rejected"
@@ -132,6 +134,20 @@ export const POST = withRouteLogging(
       { error: "unknown-checkpoint" },
       { status: 400 }
     )
+  }
+
+  // A paused booth (status = 'offline') refuses scans regardless of a
+  // valid code or token. Booth staff toggle this from the kiosk when they
+  // step away or hit a queue they need to drain first.
+  if (await isCheckpointOffline(eventId, body.checkpointId)) {
+    increment(Metric.Scan, { outcome: "rejected", reason: "checkpoint-offline" })
+    await auditReject({
+      reason: "checkpoint-offline",
+      actor: address,
+      eventId,
+      checkpointId: body.checkpointId,
+    })
+    return NextResponse.json({ error: "checkpoint-offline" }, { status: 409 })
   }
 
   if (hasToken) {

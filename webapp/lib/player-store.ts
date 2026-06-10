@@ -182,6 +182,30 @@ export async function isValidCheckpoint(
   return !!row
 }
 
+/**
+ * Returns true if the checkpoint exists in the event and is currently
+ * paused (`status = 'offline'`). Booth staff toggle this from the kiosk;
+ * the scan path uses it to reject scans at a closed booth.
+ */
+export async function isCheckpointOffline(
+  eventId: string,
+  checkpointId: string
+): Promise<boolean> {
+  if (!checkpointId) return false
+  const [row] = await storeDb
+    .select({ status: checkpoints.status })
+    .from(checkpoints)
+    .where(
+      and(
+        eq(checkpoints.id, checkpointId),
+        eq(checkpoints.eventId, eventId),
+        isNull(checkpoints.archivedAt)
+      )
+    )
+    .limit(1)
+  return row?.status === "offline"
+}
+
 /** Internal: load the scanned checkpoint ids for a player. */
 async function loadScans(playerId: string): Promise<string[]> {
   const rows = await storeDb
@@ -236,6 +260,12 @@ export async function recordScan(opts: {
   checkpointId: string
 }): Promise<PublicProgress | null> {
   if (!(await isValidCheckpoint(opts.eventId, opts.checkpointId))) {
+    return null
+  }
+  // A paused booth records nothing. The route handler also rejects with a
+  // clear `checkpoint-offline` error + audit row, but we double-check here
+  // so any other caller can't slip a scan past a closed checkpoint.
+  if (await isCheckpointOffline(opts.eventId, opts.checkpointId)) {
     return null
   }
   const player = await ensurePlayer(opts.eventId, opts.wallet)

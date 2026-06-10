@@ -30,8 +30,10 @@ import {
   listCheckpoints,
   listHourlyTraffic,
   listLiveActivity,
+  listOpenStaffAlerts,
   listSponsors,
 } from "@/lib/event-queries"
+import { StaffAlertsList } from "./_components/staff-alerts-card"
 import { buildPreflightReport } from "@/lib/preflight"
 import { timeAgo } from "@/lib/format"
 import { cn } from "@/lib/utils"
@@ -48,17 +50,26 @@ export default async function OverviewPage() {
     )
   }
 
-  const [checkpoints, sponsorsList, kpis, activity, traffic, preflight] =
-    await Promise.all([
-      listCheckpoints(event.id),
-      listSponsors(event.id),
-      getOverviewKpis(event.id),
-      listLiveActivity(event.id),
-      listHourlyTraffic(event.id),
-      buildPreflightReport(event.id),
-    ])
+  const [
+    checkpoints,
+    sponsorsList,
+    kpis,
+    activity,
+    traffic,
+    preflight,
+    staffAlerts,
+  ] = await Promise.all([
+    listCheckpoints(event.id),
+    listSponsors(event.id),
+    getOverviewKpis(event.id),
+    listLiveActivity(event.id),
+    listHourlyTraffic(event.id),
+    buildPreflightReport(event.id),
+    listOpenStaffAlerts(event.id),
+  ])
   const maxTraffic = Math.max(...traffic.map((h) => h.scans), 0)
   const needsAttention = checkpoints.filter((c) => c.status !== "healthy")
+  const attentionCount = needsAttention.length + staffAlerts.length
 
   return (
     <ProductPage>
@@ -142,10 +153,17 @@ export default async function OverviewPage() {
         <div>
           <SectionHeading
             title="Needs attention"
-            hint={`${needsAttention.length} of ${checkpoints.length} checkpoints`}
+            hint={
+              staffAlerts.length > 0
+                ? `${staffAlerts.length} help ${
+                    staffAlerts.length === 1 ? "request" : "requests"
+                  } · ${needsAttention.length} of ${checkpoints.length} checkpoints`
+                : `${needsAttention.length} of ${checkpoints.length} checkpoints`
+            }
           />
+          <StaffAlertsList alerts={staffAlerts} />
           <ul className="grid divide-y divide-border">
-            {needsAttention.length === 0 ? (
+            {attentionCount === 0 ? (
               <li className="py-3 text-sm text-muted-foreground">
                 All checkpoints healthy.
               </li>

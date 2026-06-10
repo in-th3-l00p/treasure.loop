@@ -63,6 +63,7 @@ export default async function BoothKioskPage({
           checkpointId={row.id}
           checkpointName={row.name}
           secret={row.secret}
+          paused={row.status === "offline"}
         />
       ) : (
         <div className="rounded-2xl border border-dashed border-rose-400/40 bg-rose-500/10 p-8 text-center text-sm text-rose-200">

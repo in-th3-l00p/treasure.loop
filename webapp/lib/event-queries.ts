@@ -12,6 +12,7 @@ import {
   rewards,
   scans,
   sponsors,
+  staffAlerts,
   staffAssignments,
 } from "@/db/schema"
 import { getSubject } from "./auth-server"
@@ -311,6 +312,40 @@ export async function listStaffByCheckpoint(
   return byCheckpoint
 }
 
+export interface OpenStaffAlert {
+  id: string
+  checkpointId: string
+  checkpointName: string
+  area: string | null
+  message: string | null
+  createdAt: Date
+}
+
+/**
+ * Open "Help me" alerts raised from booth kiosks, newest first. The
+ * operator overview surfaces these in its "Needs attention" card.
+ */
+export async function listOpenStaffAlerts(
+  eventId: string
+): Promise<OpenStaffAlert[]> {
+  const rows = await db
+    .select({
+      id: staffAlerts.id,
+      checkpointId: staffAlerts.checkpointId,
+      checkpointName: checkpoints.name,
+      area: checkpoints.area,
+      message: staffAlerts.message,
+      createdAt: staffAlerts.createdAt,
+    })
+    .from(staffAlerts)
+    .innerJoin(checkpoints, eq(checkpoints.id, staffAlerts.checkpointId))
+    .where(
+      and(eq(staffAlerts.eventId, eventId), eq(staffAlerts.status, "open"))
+    )
+    .orderBy(desc(staffAlerts.createdAt))
+  return rows
+}
+
 /** Player records the operator sees in the verification queue. */
 export async function listVerificationQueue(eventId: string) {
   const rows = await db
@@ -425,6 +460,14 @@ function humaniseAction(action: string, meta: unknown): string {
       return "Staff assigned to checkpoint"
     case "staff.unassigned":
       return "Staff unassigned"
+    case "staff.alert_raised":
+      return "Booth staff asked for help"
+    case "staff.alert_acknowledged":
+      return "Help request acknowledged"
+    case "checkpoint.paused":
+      return "Checkpoint paused"
+    case "checkpoint.resumed":
+      return "Checkpoint resumed"
     case "redeem":
       return `Reward “${m.rewardName ?? "unnamed"}” redeemed`
     case "player.scanned":
