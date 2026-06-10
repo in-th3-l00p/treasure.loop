@@ -32,6 +32,13 @@ without reverse-engineering it from the code.
 | [0003](./0003-clerk-over-authjs.md) | Clerk over Auth.js for operator auth |
 | [0004](./0004-rainbowkit-over-privy.md) | RainbowKit + wagmi over Privy for attendee wallet connect |
 | [0005](./0005-in-process-rate-limit-interim.md) | In-process rate limiter as an interim before KV |
+| [0006](./0006-soulbound-finisher-badge.md) | Soulbound (non-transferable) finisher badge, enforced on-chain |
+| [0007](./0007-base-sepolia-pilot.md) | Base Sepolia for the pilot, mainnet later |
+| [0008](./0008-kms-managed-mint-signer-key.md) | KMS-managed mint signer key, not a bare custodial key |
+| [0009](./0009-per-event-badge-contract.md) | Per-event badge contract over a single multi-event contract |
+| [0010](./0010-code-swap-pairing-over-matchmaking.md) | Code-swap pairing UX over hosted real-time matchmaking |
+| [0011](./0011-booth-staff-individual-clerk-users.md) | Booth staff as individual Clerk users over a shared kiosk login |
+| [0012](./0012-free-for-eth-cluj-pilot.md) | Pricing: free for the ETH Cluj pilot, revisit before any paid event |
 
 See `ROADMAP.md` ("Tech choices" sections) for the broader phased plan
 these decisions sit inside.
