@@ -33,9 +33,12 @@ import type { EligibilityRule } from "@/lib/reward-eligibility"
  */
 
 // Shared id generator. Postgres' `gen_random_uuid()` is too noisy in URLs.
-// We use a short prefix + 16 base32 chars from pgcrypto.
+// Short prefix + a URL-SAFE base64 slug: `+`→`-`, `/`→`_`, padding `=`
+// stripped. These ids travel in URL paths (e.g. /app/booth/[id]) and query
+// strings (/play/scan?cp=…), so raw base64 (`+`, `=`) would break routing
+// and decode `+` to a space — `translate(..., '+/=', '-_')` deletes `=`.
 const shortId = (prefix: string) =>
-  sql`(${sql.raw(`'${prefix}_'`)} || lower(replace(substring(encode(gen_random_bytes(10), 'base64') from 1 for 16), '/', '_')))`
+  sql`(${sql.raw(`'${prefix}_'`)} || lower(translate(substring(encode(gen_random_bytes(10), 'base64') from 1 for 16), '+/=', '-_')))`
 
 export const checkpointStatus = pgEnum("checkpoint_status", [
   "healthy",

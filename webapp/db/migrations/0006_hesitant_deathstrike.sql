@@ -1,0 +1,15 @@
+ALTER TABLE "audit_log" ALTER COLUMN "id" SET DEFAULT ('al_' || lower(translate(substring(encode(gen_random_bytes(10), 'base64') from 1 for 16), '+/=', '-_')));--> statement-breakpoint
+ALTER TABLE "badge_mints" ALTER COLUMN "id" SET DEFAULT ('bm_' || lower(translate(substring(encode(gen_random_bytes(10), 'base64') from 1 for 16), '+/=', '-_')));--> statement-breakpoint
+ALTER TABLE "checkpoints" ALTER COLUMN "id" SET DEFAULT ('cp_' || lower(translate(substring(encode(gen_random_bytes(10), 'base64') from 1 for 16), '+/=', '-_')));--> statement-breakpoint
+ALTER TABLE "events" ALTER COLUMN "id" SET DEFAULT ('evt_' || lower(translate(substring(encode(gen_random_bytes(10), 'base64') from 1 for 16), '+/=', '-_')));--> statement-breakpoint
+ALTER TABLE "fragments" ALTER COLUMN "id" SET DEFAULT ('frg_' || lower(translate(substring(encode(gen_random_bytes(10), 'base64') from 1 for 16), '+/=', '-_')));--> statement-breakpoint
+ALTER TABLE "lead_consents" ALTER COLUMN "id" SET DEFAULT ('lc_' || lower(translate(substring(encode(gen_random_bytes(10), 'base64') from 1 for 16), '+/=', '-_')));--> statement-breakpoint
+ALTER TABLE "players" ALTER COLUMN "id" SET DEFAULT ('plr_' || lower(translate(substring(encode(gen_random_bytes(10), 'base64') from 1 for 16), '+/=', '-_')));--> statement-breakpoint
+ALTER TABLE "redemption_claims" ALTER COLUMN "id" SET DEFAULT ('rc_' || lower(translate(substring(encode(gen_random_bytes(10), 'base64') from 1 for 16), '+/=', '-_')));--> statement-breakpoint
+ALTER TABLE "rewards" ALTER COLUMN "id" SET DEFAULT ('rw_' || lower(translate(substring(encode(gen_random_bytes(10), 'base64') from 1 for 16), '+/=', '-_')));--> statement-breakpoint
+ALTER TABLE "routes" ALTER COLUMN "id" SET DEFAULT ('rt_' || lower(translate(substring(encode(gen_random_bytes(10), 'base64') from 1 for 16), '+/=', '-_')));--> statement-breakpoint
+ALTER TABLE "scans" ALTER COLUMN "id" SET DEFAULT ('sc_' || lower(translate(substring(encode(gen_random_bytes(10), 'base64') from 1 for 16), '+/=', '-_')));--> statement-breakpoint
+ALTER TABLE "sponsor_traffic_hourly" ALTER COLUMN "id" SET DEFAULT ('sth_' || lower(translate(substring(encode(gen_random_bytes(10), 'base64') from 1 for 16), '+/=', '-_')));--> statement-breakpoint
+ALTER TABLE "sponsors" ALTER COLUMN "id" SET DEFAULT ('spn_' || lower(translate(substring(encode(gen_random_bytes(10), 'base64') from 1 for 16), '+/=', '-_')));--> statement-breakpoint
+ALTER TABLE "staff_alerts" ALTER COLUMN "id" SET DEFAULT ('alrt_' || lower(translate(substring(encode(gen_random_bytes(10), 'base64') from 1 for 16), '+/=', '-_')));--> statement-breakpoint
+ALTER TABLE "staff_assignments" ALTER COLUMN "id" SET DEFAULT ('sa_' || lower(translate(substring(encode(gen_random_bytes(10), 'base64') from 1 for 16), '+/=', '-_')));
