@@ -83,6 +83,68 @@ contract TreasureLoopBadgeTest is Test {
         assertEq(badge.tokenURI(tokenId), "https://treasure.loop/badge/1");
     }
 
+    // ─────────────────────────── soulbound ───────────────────────────
+
+    function _mintTo(address p, bytes32 nonce) internal returns (uint256 tokenId) {
+        TreasureLoopBadge.MintPermit memory permit = _newPermit(p, nonce);
+        vm.prank(p);
+        tokenId = badge.mint(permit, _signPermit(signerKey, permit));
+    }
+
+    function test_mint_viaPermitStillWorks_balanceOfReflects() public {
+        assertEq(badge.balanceOf(player), 0, "no badge before mint");
+        uint256 tokenId = _mintTo(player, keccak256("sb-mint"));
+        assertEq(badge.balanceOf(player), 1, "balanceOf reflects mint");
+        assertEq(badge.ownerOf(tokenId), player, "ownerOf is player");
+    }
+
+    function test_transferFrom_revertsSoulbound() public {
+        uint256 tokenId = _mintTo(player, keccak256("sb-transfer"));
+
+        vm.prank(player);
+        vm.expectRevert(TreasureLoopBadge.BadgeIsSoulbound.selector);
+        badge.transferFrom(player, otherPlayer, tokenId);
+
+        // ownership unchanged
+        assertEq(badge.ownerOf(tokenId), player);
+        assertEq(badge.balanceOf(otherPlayer), 0);
+    }
+
+    function test_safeTransferFrom_noData_revertsSoulbound() public {
+        uint256 tokenId = _mintTo(player, keccak256("sb-safe1"));
+
+        vm.prank(player);
+        vm.expectRevert(TreasureLoopBadge.BadgeIsSoulbound.selector);
+        badge.safeTransferFrom(player, otherPlayer, tokenId);
+
+        assertEq(badge.ownerOf(tokenId), player);
+    }
+
+    function test_safeTransferFrom_withData_revertsSoulbound() public {
+        uint256 tokenId = _mintTo(player, keccak256("sb-safe2"));
+
+        vm.prank(player);
+        vm.expectRevert(TreasureLoopBadge.BadgeIsSoulbound.selector);
+        badge.safeTransferFrom(player, otherPlayer, tokenId, hex"1234");
+
+        assertEq(badge.ownerOf(tokenId), player);
+    }
+
+    function test_transfer_revertsEvenWhenApproved() public {
+        uint256 tokenId = _mintTo(player, keccak256("sb-approved"));
+
+        // Approvals themselves are harmless and succeed, but the transfer
+        // they would authorize can never go through.
+        vm.prank(player);
+        badge.approve(otherPlayer, tokenId);
+
+        vm.prank(otherPlayer);
+        vm.expectRevert(TreasureLoopBadge.BadgeIsSoulbound.selector);
+        badge.transferFrom(player, otherPlayer, tokenId);
+
+        assertEq(badge.ownerOf(tokenId), player);
+    }
+
     // ─────────────────────────── sad paths ───────────────────────────
 
     function test_mint_revertsWhenCallerIsNotPlayer() public {

@@ -26,6 +26,14 @@ import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
  *   • The owner can rotate the trusted signer (server key compromise
  *     recovery) and can pause new mints at the end of the event.
  *   • baseURI points at the metadata service; tokenURI uses tokenId.
+ *   • SOULBOUND: the badge is non-transferable. Once minted to a player
+ *     it can never move to another wallet. This is a deliberate
+ *     anti-farming measure — the badge gates physical prizes, so a
+ *     transferable badge could be sold or reused to farm prizes. Only
+ *     minting (from the zero address) is permitted; every owner-to-owner
+ *     transfer reverts with {BadgeIsSoulbound}. No burn path is exposed.
+ *     `balanceOf`, `ownerOf`, and `tokenURI` continue to work normally
+ *     so the prize desk can verify eligibility.
  */
 contract TreasureLoopBadge is ERC721, Ownable, EIP712 {
     error AlreadyMinted();
@@ -33,6 +41,8 @@ contract TreasureLoopBadge is ERC721, Ownable, EIP712 {
     error NonceAlreadyUsed();
     error MintingDisabled();
     error PlayerMismatch();
+    /// @notice Thrown on any attempt to transfer a badge between owners.
+    error BadgeIsSoulbound();
 
     event SignerRotated(address indexed previous, address indexed next);
     event MintingPaused(bool paused);
@@ -66,6 +76,25 @@ contract TreasureLoopBadge is ERC721, Ownable, EIP712 {
 
     function _baseURI() internal view override returns (string memory) {
         return _baseTokenURI;
+    }
+
+    /**
+     * @notice Soulbound enforcement: the badge cannot be transferred between
+     *         owners. Overrides the OZ v5 ERC-721 `_update` hook, through
+     *         which all mints, burns, and transfers flow.
+     * @dev `from` (the current owner returned by the base `_update`) is the
+     *      zero address only for a mint. Any call where the token already has
+     *      an owner is an owner-to-owner transfer and reverts. No burn path is
+     *      exposed by this contract, so we do not special-case `to == 0`.
+     */
+    function _update(
+        address to,
+        uint256 tokenId,
+        address auth
+    ) internal override returns (address) {
+        address from = super._update(to, tokenId, auth);
+        if (from != address(0)) revert BadgeIsSoulbound();
+        return from;
     }
 
     function setBaseURI(string calldata uri) external onlyOwner {

@@ -15,7 +15,7 @@ ROADMAP Phase 4 "Audit checklist (do-it-yourself before any external audit)".
 It covers **only** `TreasureLoopBadge.sol` and its Foundry test suite. It is
 **not** a substitute for an external paid audit (see "Out of scope" below).
 
-The contract is a small (130-line) ERC-721 that mints exactly one badge per
+The contract is a small (~150-line) ERC-721 that mints exactly one badge per
 address against an EIP-712 `MintPermit` signed by an off-chain server key. The
 player submits the permit from their own wallet and pays gas.
 
@@ -27,8 +27,8 @@ player submits the permit from their own wallet and pays gas.
   - One lint warning: `block-timestamp` may be manipulated by validators
     (`src/TreasureLoopBadge.sol:97`). This is informational and acceptable
     for a multi-minute permit deadline — see CONCERN note in the checklist.
-- `forge test` — **15 passed, 0 failed, 0 skipped** (including a 256-run fuzz
-  test `testFuzz_mint_anyPlayer_anyNonce`).
+- `forge test` — **20 passed, 0 failed, 0 skipped** (including a 256-run fuzz
+  test `testFuzz_mint_anyPlayer_anyNonce` and five soulbound tests).
 
 ---
 
@@ -55,9 +55,12 @@ player submits the permit from their own wallet and pays gas.
 
 Inherited `external` functions from OZ `ERC721` (`transferFrom`, `approve`,
 `setApprovalForAll`, etc.) and `Ownable` (`transferOwnership`,
-`renounceOwnership`) carry OZ's own access control and are unmodified. Note the
-badge is **transferable** — there is no soulbound restriction. This is a design
-choice, not a defect; flagged in Findings as informational.
+`renounceOwnership`) carry OZ's own access control and are unmodified. The badge
+is **soulbound (non-transferable)**: the contract overrides the OZ v5 `_update`
+hook so every owner-to-owner transfer reverts with `BadgeIsSoulbound()`, leaving
+only minting (`from == address(0)`) permitted. `approve`/`setApprovalForAll`
+remain callable but are inert because no transfer they could authorize can ever
+succeed. See Finding 1 (resolved).
 
 `mint` access model (the security core), all in `mint` L91–122:
 
@@ -171,18 +174,29 @@ These are nice-to-haves, not blockers.
 
 The contract is **clean**. No critical, high, or medium-severity issues were
 found. CEI is correct, access control is complete, there is no `delegatecall`,
-the single `unchecked` is safe, and chain-fork replay is doubly prevented. All
-15 tests pass. The findings below are informational / low and ranked by
-priority.
+the single `unchecked` is safe, chain-fork replay is doubly prevented, and the
+badge is soulbound. All 20 tests pass. The findings below are informational /
+low and ranked by priority.
 
-1. **(Low / informational) Badge is transferable, not soulbound.**
-   The contract inherits standard OZ `ERC721` transfer functions with no
-   override. A finisher can sell or transfer their badge, and Phase 5's
-   prize-desk check is `balanceOf(player)` (per ROADMAP L345), which counts a
-   *received* badge as eligibility. If "one human, one prize" matters, consider
-   overriding `_update` to block transfers (soulbound) or have the prize desk
-   verify `ownerOf` against the originally-minted address. **Decision needed
-   before mainnet**, but it is a product choice, not a bug.
+1. **(Resolved) Badge is soulbound (non-transferable).**
+   _Previously flagged as "transferable, not soulbound."_ The contract now
+   overrides the OZ v5 `_update(address to, uint256 tokenId, address auth)`
+   hook: it calls `super._update(...)`, captures the returned `from` (the
+   current owner), and reverts with the custom error `BadgeIsSoulbound()`
+   whenever `from != address(0)` — i.e. on any owner-to-owner transfer. Minting
+   (`from == address(0)`) is the only state change the hook permits; no burn
+   path is exposed, so `to == address(0)` is not special-cased. `transferFrom`
+   and both `safeTransferFrom` overloads therefore revert. `approve` /
+   `setApprovalForAll` are left callable but inert (no authorized transfer can
+   succeed). This closes the anti-farming gap: because the badge can no longer
+   move between wallets, Phase 5's `balanceOf(player)` prize-desk check
+   (ROADMAP L345) now reliably identifies the original finisher — a badge can
+   only ever be in the wallet it was minted to. Tests:
+   `test_transferFrom_revertsSoulbound`,
+   `test_safeTransferFrom_noData_revertsSoulbound`,
+   `test_safeTransferFrom_withData_revertsSoulbound`,
+   `test_transfer_revertsEvenWhenApproved`, and
+   `test_mint_viaPermitStillWorks_balanceOfReflects`.
 
 2. **(Low) `setSigner` does not invalidate already-issued permits.**
    Rotating the signer (server-key-compromise recovery, the stated purpose at
