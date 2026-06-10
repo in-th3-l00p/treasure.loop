@@ -54,7 +54,11 @@ export function RehearsalToggle({ rehearsal }: { rehearsal: boolean }) {
         onCheckedChange={toggle}
         aria-label="Dress-rehearsal mode"
       />
-      {error && <span className="text-rose-300/90">{error}</span>}
+      {error && (
+        <span role="alert" className="text-rose-300/90">
+          {error}
+        </span>
+      )}
     </div>
   )
 }

@@ -174,12 +174,14 @@ export default function PairPage() {
               onChange={(e) => setCode(e.target.value.toUpperCase())}
               placeholder="XXXXX"
               maxLength={8}
-              className="h-12 rounded-xl border border-border bg-card/30 px-3.5 text-center font-mono text-xl tracking-[0.25em] uppercase outline-none transition-colors focus:border-primary/50 focus:bg-card/50"
+              className="h-12 rounded-xl border border-border bg-card/30 px-3.5 text-center font-mono text-xl tracking-[0.25em] uppercase outline-none transition-colors focus-visible:border-primary/60 focus-visible:bg-card/50 focus-visible:ring-2 focus-visible:ring-primary/50"
             />
           </div>
 
           {localError && (
-            <p className="text-[11px] text-rose-300/90">{localError}</p>
+            <p role="alert" className="text-[11px] text-rose-300/90">
+              {localError}
+            </p>
           )}
 
           <PlayCta onClick={submit} disabled={combine.isPending || !code.trim()}>
@@ -194,7 +196,10 @@ export default function PairPage() {
           </PlayCta>
 
           {reported ? (
-            <p className="text-center text-[11px] text-muted-foreground">
+            <p
+              role="status"
+              className="text-center text-[11px] text-muted-foreground"
+            >
               Thanks — flagged for staff review.
             </p>
           ) : (
@@ -202,7 +207,7 @@ export default function PairPage() {
               type="button"
               onClick={onReport}
               disabled={report.isPending}
-              className="text-center text-[11px] text-muted-foreground/70 underline-offset-2 transition-colors hover:text-muted-foreground hover:underline"
+              className="text-center text-[11px] text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
             >
               Report suspected cheating
             </button>

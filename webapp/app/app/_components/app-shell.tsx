@@ -83,7 +83,7 @@ function NavSection({
   if (visible.length === 0) return null
   return (
     <div className="grid gap-0.5">
-      <p className="px-2 pt-4 pb-1 text-[11px] text-sidebar-foreground/35">
+      <p className="px-2 pt-4 pb-1 text-[11px] text-sidebar-foreground/55">
         {label}
       </p>
       {visible.map((item) => (

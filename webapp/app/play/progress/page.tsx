@@ -106,7 +106,10 @@ export default function ProgressPage() {
         )}
 
         {errMessage && !busy && (
-          <div className="grid gap-4 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">
+          <div
+            role="alert"
+            className="grid gap-4 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200"
+          >
             <p>{errMessage}</p>
             <Link
               href="/play"
@@ -180,7 +183,7 @@ export default function ProgressPage() {
             <button
               type="button"
               onClick={() => refetch()}
-              className="py-2 text-center text-xs text-muted-foreground/70 underline-offset-4 hover:text-foreground hover:underline"
+              className="py-2 text-center text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
             >
               Refresh progress
             </button>

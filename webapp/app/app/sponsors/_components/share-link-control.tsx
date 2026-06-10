@@ -78,7 +78,11 @@ export function ShareLinkControl({
           )}
           Create share link
         </Button>
-        {error && <p className="text-xs text-rose-300/90">{error}</p>}
+        {error && (
+          <p role="alert" className="text-xs text-rose-300/90">
+            {error}
+          </p>
+        )}
       </div>
     )
   }
@@ -105,7 +109,11 @@ export function ShareLinkControl({
           {pending ? <Loader2Icon className="size-3.5 animate-spin" /> : "Revoke"}
         </Button>
       </div>
-      {error && <p className="text-xs text-rose-300/90">{error}</p>}
+      {error && (
+        <p role="alert" className="text-xs text-rose-300/90">
+          {error}
+        </p>
+      )}
     </div>
   )
 }

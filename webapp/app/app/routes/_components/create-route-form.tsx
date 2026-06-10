@@ -46,7 +46,11 @@ export function CreateRouteForm() {
           "Create route"
         )}
       </Button>
-      {error && <p className="text-xs text-rose-300/90">{error}</p>}
+      {error && (
+        <p role="alert" className="text-xs text-rose-300/90">
+          {error}
+        </p>
+      )}
     </form>
   )
 }

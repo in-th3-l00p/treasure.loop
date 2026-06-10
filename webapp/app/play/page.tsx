@@ -221,14 +221,19 @@ export default function PlayLanding() {
           </ConnectButton.Custom>
 
           {error && (
-            <p className="text-center text-[11px] text-rose-300/90">{error}</p>
+            <p
+              role="alert"
+              className="text-center text-[11px] text-rose-300/90"
+            >
+              {error}
+            </p>
           )}
 
           <p className="text-center text-[11px] text-muted-foreground">
             We never charge gas to play. Mint happens on completion.
           </p>
 
-          <p className="text-center text-[11px] text-muted-foreground/80">
+          <p className="text-center text-[11px] text-muted-foreground">
             Connecting stores your wallet address, scans, and redemptions
             for this event. See our{" "}
             <Link
@@ -240,7 +245,7 @@ export default function PlayLanding() {
             .
           </p>
 
-          <div className="flex items-center justify-center gap-4 pt-3 font-mono text-[10px] tracking-[0.14em] text-muted-foreground/60 uppercase">
+          <div className="flex items-center justify-center gap-4 pt-3 font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
             {playEvent && <span>{networkLabel(playEvent.network)}</span>}
             {checkpointCount !== null && (
               <>

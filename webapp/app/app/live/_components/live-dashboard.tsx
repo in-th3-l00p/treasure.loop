@@ -110,7 +110,7 @@ export function LiveDashboard({ initial }: { initial: LiveInitial }) {
             )}
           />
           {live ? "Live — refreshing every 5s" : "Paused (tab hidden)"}
-          <span className="text-muted-foreground/60">
+          <span className="text-muted-foreground">
             · updated {timeAgo(polledAt)}
           </span>
         </span>
@@ -364,7 +364,10 @@ function PauseControl({
         {pause.detail}
       </p>
       {note && (
-        <p className="rounded-md border border-amber-400/25 bg-amber-400/5 px-3 py-2 text-xs text-amber-200/90">
+        <p
+          role="alert"
+          className="rounded-md border border-amber-400/25 bg-amber-400/5 px-3 py-2 text-xs text-amber-200/90"
+        >
           {note}
         </p>
       )}

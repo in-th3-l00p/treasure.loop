@@ -330,7 +330,11 @@ export function OnboardingWizard({
               from the console — routes, sponsors, team, and rewards each have
               their own page.
             </p>
-            {error && <p className="text-xs text-rose-300/90">{error}</p>}
+            {error && (
+        <p role="alert" className="text-xs text-rose-300/90">
+          {error}
+        </p>
+      )}
             <div className="flex flex-wrap items-center gap-3 pt-1">
               <Button
                 type="button"
@@ -453,7 +457,11 @@ function Actions({
 }) {
   return (
     <div className="grid gap-3">
-      {error && <p className="text-xs text-rose-300/90">{error}</p>}
+      {error && (
+        <p role="alert" className="text-xs text-rose-300/90">
+          {error}
+        </p>
+      )}
       <div className="flex flex-wrap items-center gap-3 pt-1">
         <Button
           type="button"

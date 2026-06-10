@@ -310,6 +310,7 @@ export function PrizeDeskVerifier({
               onChange={(e) => setInput(e.target.value.trim())}
               autoComplete="off"
               spellCheck={false}
+              aria-label="Wallet address to verify"
               className="h-10 pl-9 font-mono text-sm tracking-[0.04em]"
               placeholder="0x…"
             />
@@ -336,14 +337,17 @@ export function PrizeDeskVerifier({
       </div>
 
       {error && (
-        <div className="flex items-start gap-2.5 rounded-lg border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200 print:hidden">
+        <div
+          role="alert"
+          className="flex items-start gap-2.5 rounded-lg border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200 print:hidden"
+        >
           <XCircleIcon className="mt-0.5 size-3.5 shrink-0" />
           <p>{error}</p>
         </div>
       )}
 
       {snapshot && verdict && (
-        <div className="grid gap-5 print:hidden">
+        <div role="status" className="grid gap-5 print:hidden">
           {isStale && (
             <div className="flex items-start gap-2.5 rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
               <WifiOffIcon className="mt-0.5 size-3.5 shrink-0" />
@@ -440,7 +444,7 @@ export function PrizeDeskVerifier({
               })}
             </ul>
             {redeemMessage && (
-              <p className="mt-3 text-xs text-muted-foreground">
+              <p role="status" className="mt-3 text-xs text-muted-foreground">
                 {redeemMessage}
               </p>
             )}

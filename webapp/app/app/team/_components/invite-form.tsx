@@ -111,6 +111,7 @@ export function InviteForm() {
 
       {feedback && (
         <p
+          role={feedback.kind === "ok" ? "status" : "alert"}
           className={
             feedback.kind === "ok"
               ? "text-xs text-emerald-300/90"

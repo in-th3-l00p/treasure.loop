@@ -185,7 +185,7 @@ function ScanPageInner() {
               {next.clue}
             </p>
           )}
-          <p className="text-xs text-muted-foreground/70">
+          <p className="text-xs text-muted-foreground">
             {[
               next.sponsor ? `Operated by ${next.sponsor}` : null,
               next.area,
@@ -219,7 +219,10 @@ function ScanPageInner() {
               <div className="pointer-events-none absolute inset-x-4 top-1/2 h-px bg-gradient-to-r from-transparent via-primary to-transparent" />
             )}
           </div>
-          <p className="mt-6 text-center text-sm text-muted-foreground">
+          <p
+            role="status"
+            className="mt-6 text-center text-sm text-muted-foreground"
+          >
             {success
               ? "Checkpoint solved."
               : "Ask the booth staff for the rotating 6-digit code on their screen, or tap the booth's NFC tag."}
@@ -242,12 +245,14 @@ function ScanPageInner() {
               value={code}
               onChange={(e) => setCode(e.target.value)}
               placeholder="000 000"
-              className="h-12 rounded-xl border border-border bg-card/30 px-3.5 text-center font-mono text-xl tracking-[0.2em] outline-none transition-colors focus:border-primary/50 focus:bg-card/50"
+              className="h-12 rounded-xl border border-border bg-card/30 px-3.5 text-center font-mono text-xl tracking-[0.2em] outline-none transition-colors focus-visible:border-primary/60 focus-visible:bg-card/50 focus-visible:ring-2 focus-visible:ring-primary/50"
             />
           </div>
 
           {localError && (
-            <p className="text-[11px] text-rose-300/90">{localError}</p>
+            <p role="alert" className="text-[11px] text-rose-300/90">
+              {localError}
+            </p>
           )}
 
           {next.sponsor && (

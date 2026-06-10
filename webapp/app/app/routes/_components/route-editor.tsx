@@ -215,7 +215,8 @@ function CheckpointList({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="size-6 text-muted-foreground opacity-0 group-hover:opacity-100 data-[popup-open]:opacity-100"
+                      aria-label={`Actions for ${cp.name}`}
+                      className="size-6 text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[popup-open]:opacity-100"
                     >
                       <MoreVerticalIcon className="size-3.5" />
                     </Button>
@@ -286,6 +287,7 @@ function AddCheckpoint({ routeId }: { routeId: string }) {
         value={name}
         onChange={(e) => setName(e.target.value)}
         placeholder="Checkpoint name"
+        aria-label="Checkpoint name"
         className="h-9 text-sm"
       />
       <Button type="submit" className="h-9" disabled={pending || !name.trim()}>
@@ -486,7 +488,9 @@ function CheckpointDetail({
               )}
             </Button>
             {feedback && (
-              <p className="text-xs text-muted-foreground">{feedback}</p>
+              <p role="status" className="text-xs text-muted-foreground">
+                {feedback}
+              </p>
             )}
           </div>
         </section>
@@ -584,10 +588,10 @@ function FormRow({
   children: React.ReactNode
 }) {
   return (
-    <div className="grid gap-1.5">
-      <label className="text-xs text-muted-foreground">{label}</label>
+    <label className="grid gap-1.5">
+      <span className="text-xs text-muted-foreground">{label}</span>
       {children}
-    </div>
+    </label>
   )
 }
 

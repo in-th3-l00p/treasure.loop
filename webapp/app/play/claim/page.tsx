@@ -286,7 +286,10 @@ export default function ClaimPage() {
           )}
 
           {error && (
-            <div className="flex items-start gap-2 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[11px] text-rose-200">
+            <div
+              role="alert"
+              className="flex items-start gap-2 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[11px] text-rose-200"
+            >
               <AlertTriangleIcon className="mt-0.5 size-3 shrink-0" />
               <p>{error}</p>
             </div>
@@ -371,29 +374,31 @@ function Badge({
 }
 
 function StatusPill({ state }: { state: MintState }) {
+  const base =
+    "font-mono text-[10px] tracking-[0.14em] uppercase"
   if (state === "done") {
     return (
-      <span className="font-mono text-[10px] tracking-[0.14em] text-emerald-300/90 uppercase">
+      <span role="status" className={`${base} text-emerald-300/90`}>
         Minted
       </span>
     )
   }
   if (state === "ineligible") {
     return (
-      <span className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
+      <span role="status" className={`${base} text-muted-foreground`}>
         Loop incomplete
       </span>
     )
   }
   if (state === "rehearsal") {
     return (
-      <span className="font-mono text-[10px] tracking-[0.14em] text-primary uppercase">
+      <span role="status" className={`${base} text-primary`}>
         Rehearsal
       </span>
     )
   }
   return (
-    <span className="font-mono text-[10px] tracking-[0.14em] text-primary uppercase">
+    <span role="status" className={`${base} text-primary`}>
       Loop complete
     </span>
   )

@@ -78,7 +78,7 @@ export function CommandPalette({
         <CommandEmpty>
           <div className="grid gap-1.5 py-2 text-center">
             <p className="text-sm text-muted-foreground">Nothing matches.</p>
-            <p className="font-mono text-[11px] text-muted-foreground/60">
+            <p className="font-mono text-[11px] text-muted-foreground">
               Try a checkpoint or sponsor name
             </p>
           </div>
