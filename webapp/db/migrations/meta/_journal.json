@@ -64,6 +64,13 @@
       "when": 1781177564306,
       "tag": "0008_square_cloak",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1781178930239,
+      "tag": "0009_furry_roughhouse",
+      "breakpoints": true
     }
   ]
 }

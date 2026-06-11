@@ -595,6 +595,30 @@ export const eventRsvps = pgTable(
   ]
 )
 
+// ───────────────────────── player follows ──────────────────────────
+//
+// The social graph: a wallet follows another wallet. One row per
+// (follower, following) pair.
+
+export const playerFollows = pgTable(
+  "player_follows",
+  {
+    id: text("id").primaryKey().default(shortId("flw")),
+    followerWallet: varchar("follower_wallet", { length: 42 }).notNull(),
+    followingWallet: varchar("following_wallet", { length: 42 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("player_follows_pair_idx").on(
+      t.followerWallet,
+      t.followingWallet
+    ),
+    index("player_follows_following_idx").on(t.followingWallet),
+  ]
+)
+
 // ────────────────────── inferred row types ─────────────────────────
 
 export type Event = typeof events.$inferSelect
@@ -620,3 +644,5 @@ export type PlayerProfile = typeof playerProfiles.$inferSelect
 export type NewPlayerProfile = typeof playerProfiles.$inferInsert
 export type EventRsvp = typeof eventRsvps.$inferSelect
 export type NewEventRsvp = typeof eventRsvps.$inferInsert
+export type PlayerFollow = typeof playerFollows.$inferSelect
+export type NewPlayerFollow = typeof playerFollows.$inferInsert
