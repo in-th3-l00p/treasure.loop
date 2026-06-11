@@ -74,6 +74,16 @@ export const staffAlertStatus = pgEnum("staff_alert_status", [
 
 export const fragmentKind = pgEnum("fragment_kind", ["A", "B"])
 
+// Who can discover an event:
+//   public   — listed in the global Explore directory
+//   unlisted — reachable only via a shared link / QR
+//   private  — host + invited operators only
+export const eventVisibility = pgEnum("event_visibility", [
+  "public",
+  "unlisted",
+  "private",
+])
+
 // ───────────────────────────── events ─────────────────────────────
 
 export const events = pgTable(
@@ -89,6 +99,12 @@ export const events = pgTable(
     network: text("network").notNull().default("base-sepolia"),
     badgeContractAddress: varchar("badge_contract_address", { length: 42 }),
     status: text("status").notNull().default("draft"),
+    /** Discovery: who can find this event. New events start unlisted. */
+    visibility: eventVisibility("visibility").notNull().default("unlisted"),
+    /** Short public blurb shown on the event card + detail page. */
+    summary: text("summary"),
+    /** Public cover image URL for the event card / hero. */
+    coverImageUrl: varchar("cover_image_url", { length: 2048 }),
     /**
      * Dress-rehearsal mode. When true, the badge mint path refuses to
      * issue a production mint permit (the mint-permit route returns

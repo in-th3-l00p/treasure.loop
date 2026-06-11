@@ -44,6 +44,10 @@ async function main() {
       datesEnd: new Date("2026-07-19T18:00:00Z"),
       network: "base-sepolia",
       status: "live_rehearsal",
+      // Discoverable in the public Explore directory.
+      visibility: "public",
+      summary:
+        "A venue-wide treasure hunt across ETH Cluj. Scan staffed sponsor checkpoints, solve the clue chain, pair up with strangers, and mint an on-chain finisher badge.",
       // The pilot is fully configured — don't nag it with the onboarding
       // wizard. `rehearsal` (the dress-rehearsal mint flag) defaults false.
       onboardedAt: new Date(),
