@@ -137,6 +137,49 @@ export async function setRehearsalMode(input: {
 }
 
 /**
+ * Set the active event's discovery visibility.
+ *
+ *   - `public`    — listed in the public Explore directory.
+ *   - `unlisted`  — reachable by direct link, but not listed.
+ *   - `private`   — hidden from discovery surfaces.
+ *
+ * Organizer-gated; writes an `event.visibility_changed` audit row in the
+ * same transaction so the change is traceable.
+ */
+export async function setEventVisibility(
+  visibility: "public" | "unlisted" | "private"
+): Promise<ActionResult> {
+  const ctx = await getOperatorContext()
+  if (!ctx) return err("forbidden", "Sign in as an organizer.")
+  if (!hasRole(ctx.subject, [ROLES.ORGANIZER]))
+    return err("forbidden", "Organizers only.")
+  if (
+    visibility !== "public" &&
+    visibility !== "unlisted" &&
+    visibility !== "private"
+  ) {
+    return err("invalid", "Unknown visibility.")
+  }
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(events)
+      .set({ visibility })
+      .where(eq(events.id, ctx.event.id))
+    await tx.insert(auditLog).values({
+      eventId: ctx.event.id,
+      actor: ctx.subject.userId ?? "unknown",
+      action: "event.visibility_changed",
+      target: ctx.event.id,
+      meta: { visibility, previous: ctx.event.visibility },
+    })
+  })
+
+  revalidatePath("/app")
+  return { ok: true }
+}
+
+/**
  * Mark the onboarding wizard finished (or skipped) for the active event.
  * Sets `onboardedAt` so `/app` stops surfacing the guided setup flow.
  * Idempotent: re-finishing keeps the original stamp.

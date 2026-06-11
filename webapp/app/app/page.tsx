@@ -27,6 +27,7 @@ import {
 import { requireMember } from "@/lib/auth-server"
 import { canConfigureEvent } from "@/lib/authz"
 import { RehearsalToggle } from "./_components/rehearsal-toggle"
+import { VisibilityControl } from "./_components/visibility-control"
 import {
   getActiveEvent,
   getOverviewKpis,
@@ -88,6 +89,9 @@ export default async function OverviewPage() {
         title="Event overview"
         description="What is happening on the floor right now, and what needs your attention before the next wave."
       >
+        {isOrganizer && (
+          <VisibilityControl visibility={event.visibility} />
+        )}
         {isOrganizer && <RehearsalToggle rehearsal={event.rehearsal} />}
         <Link
           href="/app/preflight"
