@@ -24,3 +24,42 @@ export function timeAgo(date: Date | number, now = Date.now()): string {
 export function clockTime(date: Date): string {
   return date.toISOString().slice(11, 16)
 }
+
+/**
+ * Calm, locale-stable event date range for discovery surfaces:
+ * `Mar 12, 2026`, `Mar 12 – 14, 2026`, or `Mar 30 – Apr 2, 2026`.
+ * Epoch ms in, UTC out (so SSR and client agree); null when undated.
+ */
+export function formatDateRange(
+  startsAt: number | null,
+  endsAt: number | null
+): string | null {
+  if (startsAt === null) return null
+  const start = new Date(startsAt)
+  const full = (d: Date) =>
+    d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      timeZone: "UTC",
+    })
+  if (endsAt === null || startsAt === endsAt) return full(start)
+  const end = new Date(endsAt)
+  const sameMonth =
+    start.getUTCFullYear() === end.getUTCFullYear() &&
+    start.getUTCMonth() === end.getUTCMonth()
+  if (sameMonth) {
+    const startMonthDay = start.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      timeZone: "UTC",
+    })
+    const endDayYear = end.toLocaleDateString("en-US", {
+      day: "numeric",
+      year: "numeric",
+      timeZone: "UTC",
+    })
+    return `${startMonthDay} – ${endDayYear}`
+  }
+  return `${full(start)} – ${full(end)}`
+}
