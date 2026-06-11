@@ -31,6 +31,9 @@ const isPublicRoute = createRouteMatcher([
   "/login(.*)",
   "/sign-up(.*)",
   "/play(.*)", // attendee surface — wallet auth, not Clerk
+  "/e/(.*)", // public event pages + event-scoped play — wallet auth, not Clerk
+  "/explore", // public event directory
+  "/u/(.*)", // public player profiles
   "/share/(.*)", // revocable public sponsor report — token-gated, not Clerk
   "/api/play/(.*)", // attendee API — guarded by SIWE session, not Clerk
   "/api/badge-metadata/(.*)", // tokenURI target — wallets fetch anonymously

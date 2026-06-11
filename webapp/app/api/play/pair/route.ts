@@ -2,9 +2,9 @@ import { NextResponse } from "next/server"
 
 import { withRouteLogging, type RouteContext } from "@/lib/logger"
 import { getPlayAddress } from "@/lib/play-session"
+import { playEventId } from "@/lib/events-public"
 import {
   combineFragments,
-  currentEventId,
   getPlayerActiveFragment,
   reportPairCheating,
 } from "@/lib/player-store"
@@ -34,7 +34,7 @@ export const GET = withRouteLogging(
       return NextResponse.json({ error: "not-authenticated" }, { status: 401 })
     }
     ctx.set({ actor: address })
-    const eventId = await currentEventId()
+    const eventId = await playEventId()
     const fragment = await getPlayerActiveFragment(eventId, address)
     return NextResponse.json({ fragment })
   }
@@ -76,7 +76,7 @@ export const POST = withRouteLogging(
       return NextResponse.json({ error: "invalid-json" }, { status: 400 })
     }
 
-    const eventId = await currentEventId()
+    const eventId = await playEventId()
 
     if (body.action === "report") {
       await reportPairCheating({

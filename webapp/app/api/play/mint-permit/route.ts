@@ -9,8 +9,8 @@ import { withRouteLogging, type RouteContext } from "@/lib/logger"
 import { increment, Metric } from "@/lib/metrics"
 import { issueMintPermit } from "@/lib/mint-permits"
 import { getPlayAddress } from "@/lib/play-session"
+import { playEventId } from "@/lib/events-public"
 import {
-  currentEventId,
   getProgress,
   isEventInRehearsal,
   totalCheckpoints,
@@ -43,7 +43,7 @@ export const POST = withRouteLogging(
   }
   ctx.set({ actor: address })
 
-  const eventId = await currentEventId()
+  const eventId = await playEventId()
 
   // Dress-rehearsal: never issue a production permit. Honestly refuse so
   // no on-chain mint and no `badge_mints` row is created. The claim

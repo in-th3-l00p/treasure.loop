@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 
 import { erasePlayerData } from "@/lib/data-rights"
 import { withRouteLogging, type RouteContext } from "@/lib/logger"
-import { currentEventId } from "@/lib/player-store"
+import { playEventId } from "@/lib/events-public"
 import { getPlayAddress, getPlaySession } from "@/lib/play-session"
 
 /**
@@ -25,7 +25,7 @@ export const POST = withRouteLogging(
     }
     ctx.set({ actor: address })
 
-    const eventId = await currentEventId()
+    const eventId = await playEventId()
     const result = await erasePlayerData(address, eventId)
 
     // Erasure clears the session-linked identity → end the session.

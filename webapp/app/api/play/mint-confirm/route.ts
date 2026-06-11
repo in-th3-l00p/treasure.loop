@@ -7,7 +7,8 @@ import { MOCK_CHAIN } from "@/lib/badge-contract"
 import { withRouteLogging, type RouteContext } from "@/lib/logger"
 import { increment, Metric } from "@/lib/metrics"
 import { getPlayAddress } from "@/lib/play-session"
-import { currentEventId, recordBadgeMint } from "@/lib/player-store"
+import { playEventId } from "@/lib/events-public"
+import { recordBadgeMint } from "@/lib/player-store"
 
 export const POST = withRouteLogging(
   "play/mint-confirm",
@@ -48,7 +49,7 @@ export const POST = withRouteLogging(
     return NextResponse.json({ error: "invalid-tx-hash" }, { status: 400 })
   }
 
-  const eventId = await currentEventId()
+  const eventId = await playEventId()
   const progress = await recordBadgeMint({
     eventId,
     wallet: address,

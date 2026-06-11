@@ -21,6 +21,13 @@ export interface PlaySession {
   issuedAt?: number
   /** Per-session nonce held server-side while we wait for the signed verify. */
   pendingNonce?: string
+  /**
+   * The event the player is currently inside. Set when they enter an
+   * event's play surface (`/e/[slug]/play`). The play APIs scope every
+   * read/write to this event; absent, they fall back to the single live
+   * event (`currentEventId`) for backward compatibility.
+   */
+  activeEventId?: string
 }
 
 const SESSION_PASSWORD =

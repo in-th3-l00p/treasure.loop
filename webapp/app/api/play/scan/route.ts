@@ -7,8 +7,8 @@ import { verifyCheckpointCode } from "@/lib/checkpoint-codes"
 import { withRouteLogging, type RouteContext } from "@/lib/logger"
 import { increment, Metric } from "@/lib/metrics"
 import { getPlayAddress } from "@/lib/play-session"
+import { playEventId } from "@/lib/events-public"
 import {
-  currentEventId,
   getCheckpointClueType,
   isCheckpointOffline,
   issueFragment,
@@ -126,7 +126,7 @@ export const POST = withRouteLogging(
     return NextResponse.json({ error: "missing-code" }, { status: 400 })
   }
 
-  const eventId = await currentEventId()
+  const eventId = await playEventId()
 
   ctx.set({ checkpointId: body.checkpointId })
 

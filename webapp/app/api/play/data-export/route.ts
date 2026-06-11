@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 
 import { exportPlayerData } from "@/lib/data-rights"
 import { withRouteLogging, type RouteContext } from "@/lib/logger"
-import { currentEventId } from "@/lib/player-store"
+import { playEventId } from "@/lib/events-public"
 import { getPlayAddress } from "@/lib/play-session"
 
 /**
@@ -21,7 +21,7 @@ export const GET = withRouteLogging(
     }
     ctx.set({ actor: address })
 
-    const eventId = await currentEventId()
+    const eventId = await playEventId()
     const data = await exportPlayerData(address, eventId)
 
     const body = JSON.stringify(data, null, 2)

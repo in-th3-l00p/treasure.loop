@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 
-import { currentEventId, getPublicEvent } from "@/lib/player-store"
+import { playEventId } from "@/lib/events-public"
+import { getPublicEvent } from "@/lib/player-store"
 
 /**
  * Public event sheet for the attendee surface: event name, network,
@@ -10,7 +11,7 @@ import { currentEventId, getPublicEvent } from "@/lib/player-store"
 export async function GET() {
   let eventId: string
   try {
-    eventId = await currentEventId()
+    eventId = await playEventId()
   } catch {
     return NextResponse.json({ error: "no-active-event" }, { status: 503 })
   }
