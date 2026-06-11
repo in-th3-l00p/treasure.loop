@@ -57,6 +57,13 @@
       "when": 1781172344205,
       "tag": "0007_polite_naoko",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1781177564306,
+      "tag": "0008_square_cloak",
+      "breakpoints": true
     }
   ]
 }

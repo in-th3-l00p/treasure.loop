@@ -546,6 +546,55 @@ export const auditLog = pgTable("audit_log", {
     .defaultNow(),
 })
 
+// ─────────────────────── player profiles ───────────────────────────
+//
+// Global, wallet-keyed identity for the social/player layer — distinct
+// from the per-event `players` participation row. Created lazily the
+// first time a signed-in wallet sets a profile. Everything is optional;
+// a wallet can play without ever filling one in.
+
+export const playerProfiles = pgTable("player_profiles", {
+  /** Checksummed wallet address — the identity. */
+  wallet: varchar("wallet", { length: 42 }).primaryKey(),
+  /** Unique, URL-safe handle for /u/[handle]. Null until chosen. */
+  handle: varchar("handle", { length: 32 }),
+  displayName: varchar("display_name", { length: 64 }),
+  avatarUrl: varchar("avatar_url", { length: 2048 }),
+  bio: text("bio"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+}, (t) => [uniqueIndex("player_profiles_handle_idx").on(t.handle)])
+
+// ───────────────────────── event RSVPs ─────────────────────────────
+//
+// A lightweight "I'm attending" signal, separate from "started playing"
+// (the `players` row). One row per (event, wallet).
+
+export const rsvpStatus = pgEnum("rsvp_status", ["going", "interested"])
+
+export const eventRsvps = pgTable(
+  "event_rsvps",
+  {
+    id: text("id").primaryKey().default(shortId("rsvp")),
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    wallet: varchar("wallet", { length: 42 }).notNull(),
+    status: rsvpStatus("status").notNull().default("going"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("event_rsvps_event_wallet_idx").on(t.eventId, t.wallet),
+    index("event_rsvps_wallet_idx").on(t.wallet),
+  ]
+)
+
 // ────────────────────── inferred row types ─────────────────────────
 
 export type Event = typeof events.$inferSelect
@@ -567,3 +616,7 @@ export type NewLeadConsent = typeof leadConsents.$inferInsert
 export type SponsorTrafficHourly = typeof sponsorTrafficHourly.$inferSelect
 export type ShareLink = typeof shareLinks.$inferSelect
 export type NewShareLink = typeof shareLinks.$inferInsert
+export type PlayerProfile = typeof playerProfiles.$inferSelect
+export type NewPlayerProfile = typeof playerProfiles.$inferInsert
+export type EventRsvp = typeof eventRsvps.$inferSelect
+export type NewEventRsvp = typeof eventRsvps.$inferInsert
