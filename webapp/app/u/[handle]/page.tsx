@@ -4,10 +4,14 @@ import { notFound } from "next/navigation"
 import { ArrowLeftIcon, ArrowRightIcon, TrophyIcon } from "lucide-react"
 
 import { formatDateRange } from "@/lib/format"
+import { countFollowers, countFollowing } from "@/lib/player-follows"
+import { getPlayAddress } from "@/lib/play-session"
 import {
   getProfileByHandle,
   getProfileCollection,
 } from "@/lib/player-profiles"
+
+import { FollowButton } from "./_components/follow-button"
 
 export async function generateMetadata({
   params,
@@ -29,8 +33,14 @@ export default async function PublicProfilePage({
   const profile = await getProfileByHandle(handle)
   if (!profile) notFound()
 
-  const badges = await getProfileCollection(profile.wallet)
+  const [badges, followers, following, viewer] = await Promise.all([
+    getProfileCollection(profile.wallet),
+    countFollowers(profile.wallet),
+    countFollowing(profile.wallet),
+    getPlayAddress(),
+  ])
   const name = profile.displayName ?? `@${profile.handle}`
+  const isOwnProfile = viewer !== null && viewer === profile.wallet
 
   return (
     <main className="relative min-h-screen overflow-hidden">
@@ -67,10 +77,27 @@ export default async function PublicProfilePage({
                 @{profile.handle}
               </p>
             )}
+            <p className="text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">{followers}</span>{" "}
+              {followers === 1 ? "follower" : "followers"}
+              {" · "}
+              <span className="font-medium text-foreground">
+                {following}
+              </span>{" "}
+              following
+            </p>
             {profile.bio && (
               <p className="max-w-prose pt-1 text-sm leading-relaxed text-muted-foreground">
                 {profile.bio}
               </p>
+            )}
+            {profile.handle && (
+              <div className="flex justify-center pt-2 sm:justify-start">
+                <FollowButton
+                  handle={profile.handle}
+                  isOwnProfile={isOwnProfile}
+                />
+              </div>
             )}
           </div>
         </section>
