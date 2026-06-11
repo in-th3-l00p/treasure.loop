@@ -154,12 +154,13 @@ function ScanPageInner() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden">
+    <main className="relative min-h-screen overflow-hidden md:flex md:flex-col md:items-center md:justify-center md:py-12">
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute -top-32 left-1/2 size-[36rem] -translate-x-1/2 rounded-full bg-[radial-gradient(circle,oklch(73%_0.17_296_/_0.25),transparent_60%)] blur-2xl" />
       </div>
 
-      <header className="relative mx-auto flex w-full max-w-md items-center justify-between px-5 pt-6">
+      <div className="relative w-full md:max-w-xl md:overflow-hidden md:rounded-[2rem] md:border md:border-border/60 md:bg-card/20 md:shadow-[0_40px_120px_-40px_oklch(56%_0.18_286_/_0.55)] md:backdrop-blur-sm">
+      <header className="relative mx-auto flex w-full max-w-md items-center justify-between px-5 pt-6 md:max-w-none md:px-8 md:pt-8">
         <Link
           href="/play/progress"
           className="flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
@@ -172,7 +173,7 @@ function ScanPageInner() {
         </span>
       </header>
 
-      <div className="relative mx-auto grid w-full max-w-md gap-8 px-5 pt-10 pb-12">
+      <div className="relative mx-auto grid w-full max-w-md gap-8 px-5 pt-10 pb-12 md:max-w-none md:px-8 md:pb-10">
         <div className="grid gap-3">
           <p className="font-mono text-[11px] tracking-[0.18em] text-primary uppercase">
             Next checkpoint
@@ -303,6 +304,7 @@ function ScanPageInner() {
             )}
           </PlayCta>
         </div>
+      </div>
       </div>
     </main>
   )

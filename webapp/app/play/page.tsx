@@ -117,12 +117,14 @@ export default function PlayLanding() {
   }, [address, chainId, requestNonce, signMessageAsync, verifySiwe, router])
 
   return (
-    <main className="relative min-h-screen overflow-hidden">
+    <main className="relative min-h-screen overflow-hidden md:flex md:flex-col md:items-center md:justify-center md:py-12">
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute -top-32 -left-24 size-[40rem] rounded-full bg-[radial-gradient(circle,oklch(73%_0.17_296_/_0.3),transparent_60%)] blur-2xl" />
+        <div className="absolute top-1/2 left-1/2 hidden size-[52rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,oklch(73%_0.17_296_/_0.12),transparent_62%)] blur-3xl md:block" />
       </div>
 
-      <header className="relative mx-auto flex w-full max-w-md items-center justify-between px-5 pt-6">
+      <div className="relative w-full md:max-w-xl md:overflow-hidden md:rounded-[2rem] md:border md:border-border/60 md:bg-card/20 md:shadow-[0_40px_120px_-40px_oklch(56%_0.18_286_/_0.55)] md:backdrop-blur-sm">
+      <header className="relative mx-auto flex w-full max-w-md items-center justify-between px-5 pt-6 md:max-w-none md:px-8 md:pt-8">
         <Link href="/" className="flex items-center gap-2">
           <span className="grid size-7 place-items-center rounded-md border border-border bg-card/60">
             <span className="block size-1.5 rounded-full bg-primary shadow-[0_0_10px_oklch(73%_0.17_296_/_0.7)]" />
@@ -136,7 +138,7 @@ export default function PlayLanding() {
         </span>
       </header>
 
-      <div className="relative mx-auto flex min-h-[calc(100vh-72px)] w-full max-w-md flex-col justify-between px-5 pt-12 pb-10">
+      <div className="relative mx-auto flex min-h-[calc(100vh-72px)] w-full max-w-md flex-col justify-between gap-10 px-5 pt-12 pb-10 md:min-h-0 md:max-w-none md:px-8 md:pt-10 md:pb-9">
         <div className="grid gap-7">
           <div className="grid gap-3">
             <p className="font-mono text-[11px] tracking-[0.18em] text-primary uppercase">
@@ -277,6 +279,7 @@ export default function PlayLanding() {
             )}
           </div>
         </div>
+      </div>
       </div>
     </main>
   )
