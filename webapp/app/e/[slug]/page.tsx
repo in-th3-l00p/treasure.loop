@@ -153,6 +153,15 @@ export default async function EventDetailPage({
                 No app install. We never charge gas to play.
               </span>
             </div>
+
+            <Link
+              href={`/e/${event.slug}/leaderboard`}
+              className="inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <TrophyIcon className="size-3.5" />
+              View leaderboard
+              <ArrowRightIcon className="size-3.5" />
+            </Link>
           </div>
         </div>
 
