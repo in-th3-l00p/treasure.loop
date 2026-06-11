@@ -172,8 +172,10 @@ export const POST = withRouteLogging(
       })
       return NextResponse.json({ error: "bad-url-token" }, { status: 401 })
     }
-  } else {
+  } else if (process.env.ALLOW_UNSECURED_SCANS !== "1") {
     // Manual-entry path: pull the checkpoint's TOTP secret and verify.
+    // Skipped entirely (any non-empty code accepted) in local/dev when
+    // ALLOW_UNSECURED_SCANS=1 — never set that in production.
     const [cp] = await db
       .select({ secret: checkpoints.totpSecret })
       .from(checkpoints)

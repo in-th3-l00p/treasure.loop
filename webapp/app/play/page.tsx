@@ -14,7 +14,8 @@ import {
   TrophyIcon,
 } from "lucide-react"
 
-import { networkLabel } from "@/lib/play-client"
+import { MOCK_CHAIN } from "@/lib/badge-contract"
+import { devLogin, networkLabel } from "@/lib/play-client"
 import {
   useLogout,
   usePlayEvent,
@@ -219,6 +220,21 @@ export default function PlayLanding() {
               )
             }}
           </ConnectButton.Custom>
+
+          {MOCK_CHAIN && (
+            <button
+              type="button"
+              onClick={async () => {
+                await devLogin()
+                // Hard navigation so the landing's wallet/session sync
+                // logic doesn't tear down the dev session mid-render.
+                window.location.assign("/play/scan")
+              }}
+              className="rounded-xl border border-dashed border-primary/40 bg-primary/5 py-2.5 text-center text-[11px] text-primary/90 transition-colors hover:bg-primary/10"
+            >
+              Dev: play with a test wallet (no signature)
+            </button>
+          )}
 
           {error && (
             <p

@@ -71,6 +71,16 @@ export async function logout(): Promise<{ ok: true }> {
   return jsonFetch("/api/play/auth/logout", { method: "POST" })
 }
 
+/** Dev-only (MOCK_CHAIN): seal a play session with a test wallet, no SIWE. */
+export async function devLogin(
+  address?: string
+): Promise<{ ok: boolean; address: Address }> {
+  return jsonFetch("/api/play/auth/dev-login", {
+    method: "POST",
+    body: JSON.stringify(address ? { address } : {}),
+  })
+}
+
 // ─────────────────── Event sheet ───────────────────
 
 export interface PlayCheckpoint {

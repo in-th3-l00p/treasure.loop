@@ -83,7 +83,11 @@ npm run dev
 ## Demo the attendee loop (no Clerk needed)
 
 1. Open <http://localhost:3000/play>.
-2. Connect a browser wallet and sign in (SIWE).
+2. Connect a browser wallet and sign in (SIWE) — **or**, in `MOCK_CHAIN`
+   mode, click **"Dev: play with a test wallet"** to start a session with
+   a generated wallet and no signature (dev-only; the endpoint 404s in
+   production). Pair checkpoints need a second player — open a second
+   browser/profile and use a second test wallet to combine fragments.
 3. **Scan** each checkpoint — in PoC mode any code is accepted
    (`ALLOW_UNSECURED_SCANS=1`). A `pair` checkpoint hands you a fragment;
    open `/play/pair` in a second wallet/browser to combine.
