@@ -12,10 +12,13 @@ import {
   UsersIcon,
 } from "lucide-react"
 
+import { countGoing } from "@/lib/event-rsvp"
 import { getPublicEventCardBySlug } from "@/lib/events-public"
 import { formatDateRange } from "@/lib/format"
 import { networkLabel } from "@/lib/play-client"
 import { getPublicEvent } from "@/lib/player-store"
+
+import { RsvpButton } from "./_components/rsvp-button"
 
 const howItWorks = [
   {
@@ -60,6 +63,7 @@ export default async function EventDetailPage({
   if (!event) notFound()
 
   const detail = await getPublicEvent(event.id)
+  const going = await countGoing(event.id)
   const checkpointCount = detail?.checkpoints.length ?? null
   const teaser = (detail?.checkpoints ?? [])
     .slice(0, 5)
@@ -129,6 +133,11 @@ export default async function EventDetailPage({
                 label="Network"
                 value={networkLabel(event.network)}
               />
+              <Fact
+                icon={UsersIcon}
+                label="Going"
+                value={going === 1 ? "1 going" : `${going} going`}
+              />
             </dl>
 
             <div className="grid gap-3 pt-2 sm:flex sm:items-center">
@@ -139,6 +148,7 @@ export default async function EventDetailPage({
                 Play the hunt
                 <ArrowRightIcon className="size-4" />
               </Link>
+              <RsvpButton slug={event.slug} initialGoing={going} />
               <span className="text-center text-xs text-muted-foreground sm:text-left">
                 No app install. We never charge gas to play.
               </span>
